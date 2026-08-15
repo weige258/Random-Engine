@@ -1,0 +1,14 @@
+[
+{
+  "directory": "D:/Project/RandEngine/Build",
+  "command": "D:\\Dev\\Clang\\bin\\clang++.exe -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++23 -o Source\\CMakeFiles\\Source.dir\\main.cpp.obj -c D:\\Project\\RandEngine\\Source\\main.cpp",
+  "file": "D:/Project/RandEngine/Source/main.cpp",
+  "output": "D:/Project/RandEngine/Build/Source/CMakeFiles/Source.dir/main.cpp.obj"
+},
+{
+  "directory": "D:/Project/RandEngine/Build",
+  "command": "D:\\Dev\\Clang\\bin\\clang++.exe -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++23 -o Source\\CMakeFiles\\RandEngine.dir\\main.cpp.obj -c D:\\Project\\RandEngine\\Source\\main.cpp",
+  "file": "D:/Project/RandEngine/Source/main.cpp",
+  "output": "D:/Project/RandEngine/Build/Source/CMakeFiles/RandEngine.dir/main.cpp.obj"
+}
+]
