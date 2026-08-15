@@ -1,11 +1,12 @@
 #include "EngineApplication.hpp"
-#include "./Core/Math/Math.hpp"
-#include "iostream"
 
-int main(){
-    RandEngine::Engine::EngineApplication engine;
-    engine.Init();
-    engine.Run();
+using namespace RandEngine::Engine;
 
+int main()
+{
+    EngineApplication app;
+    app.Init();
+    app.Run();
+    app.Destroy();
     return 0;
 }
