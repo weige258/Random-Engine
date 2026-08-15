@@ -1,7 +1,9 @@
-#include "iostream"
+#include "Engine.hpp"
 
 
 int main(){
-    std::cout << "Hello World2!" << std::endl;
+    RandEngine::Engine::EngineApplication app;    
+    app.Init();
+    app.Run();
     return 0;
 }
