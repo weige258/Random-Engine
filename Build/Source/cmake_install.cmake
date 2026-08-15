@@ -40,6 +40,7 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
   include("D:/Project/RandEngine/Build/Source/Engine/cmake_install.cmake")
+  include("D:/Project/RandEngine/Build/Source/Core/cmake_install.cmake")
 
 endif()
 

@@ -76,13 +76,13 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 #############################################
 # Order-only phony target for RandEngine
 
-build cmake_object_order_depends_target_RandEngine: phony || cmake_object_order_depends_target_Engine
+build cmake_object_order_depends_target_RandEngine: phony || cmake_object_order_depends_target_Core cmake_object_order_depends_target_Engine
 
 build Source/CMakeFiles/RandEngine.dir/main.cpp.obj: CXX_COMPILER__RandEngine_unscanned_Debug D$:/Project/RandEngine/Source/main.cpp || cmake_object_order_depends_target_RandEngine
   CONFIG = Debug
   DEP_FILE = Source\CMakeFiles\RandEngine.dir\main.cpp.obj.d
   FLAGS = -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++23
-  INCLUDES = -ID:/Project/RandEngine/Source/Engine
+  INCLUDES = -ID:/Project/RandEngine/Source -ID:/Project/RandEngine/Source/Engine -ID:/Project/RandEngine/Source/Core -ID:/Project/RandEngine/Source/Core/Objects/BaseObject
   OBJECT_DIR = Source\CMakeFiles\RandEngine.dir
   OBJECT_FILE_DIR = Source\CMakeFiles\RandEngine.dir
   TARGET_COMPILE_PDB = Source\CMakeFiles\RandEngine.dir\
@@ -97,11 +97,11 @@ build Source/CMakeFiles/RandEngine.dir/main.cpp.obj: CXX_COMPILER__RandEngine_un
 #############################################
 # Link the executable RandEngine.exe
 
-build RandEngine.exe: CXX_EXECUTABLE_LINKER__RandEngine_Debug Source/CMakeFiles/RandEngine.dir/main.cpp.obj | Source/Engine/Engine.lib || Source/Engine/Engine.lib
+build RandEngine.exe: CXX_EXECUTABLE_LINKER__RandEngine_Debug Source/CMakeFiles/RandEngine.dir/main.cpp.obj | Source/Engine/Engine.lib Source/Core/Core.lib || Source/Core/Core.lib Source/Engine/Engine.lib
   CONFIG = Debug
   FLAGS = -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd
   LINK_FLAGS = -Xlinker /subsystem:console -fuse-ld=lld
-  LINK_LIBRARIES = Source/Engine/Engine.lib  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -loldnames
+  LINK_LIBRARIES = Source/Engine/Engine.lib  Source/Core/Core.lib  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -loldnames
   OBJECT_DIR = Source\CMakeFiles\RandEngine.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -149,9 +149,9 @@ build Source/rebuild_cache: phony Source/CMakeFiles/rebuild_cache.util
 
 build cmake_object_order_depends_target_Engine: phony || .
 
-build Source/Engine/CMakeFiles/Engine.dir/Engine.cpp.obj: CXX_COMPILER__Engine_unscanned_Debug D$:/Project/RandEngine/Source/Engine/Engine.cpp || cmake_object_order_depends_target_Engine
+build Source/Engine/CMakeFiles/Engine.dir/EngineApplication.cpp.obj: CXX_COMPILER__Engine_unscanned_Debug D$:/Project/RandEngine/Source/Engine/EngineApplication.cpp || cmake_object_order_depends_target_Engine
   CONFIG = Debug
-  DEP_FILE = Source\Engine\CMakeFiles\Engine.dir\Engine.cpp.obj.d
+  DEP_FILE = Source\Engine\CMakeFiles\Engine.dir\EngineApplication.cpp.obj.d
   FLAGS = -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++23
   INCLUDES = -ID:/Project/RandEngine/Source/Engine
   OBJECT_DIR = Source\Engine\CMakeFiles\Engine.dir
@@ -168,7 +168,7 @@ build Source/Engine/CMakeFiles/Engine.dir/Engine.cpp.obj: CXX_COMPILER__Engine_u
 #############################################
 # Link the static library Source\Engine\Engine.lib
 
-build Source/Engine/Engine.lib: CXX_STATIC_LIBRARY_LINKER__Engine_Debug Source/Engine/CMakeFiles/Engine.dir/Engine.cpp.obj
+build Source/Engine/Engine.lib: CXX_STATIC_LIBRARY_LINKER__Engine_Debug Source/Engine/CMakeFiles/Engine.dir/EngineApplication.cpp.obj
   CONFIG = Debug
   LANGUAGE_COMPILE_FLAGS = -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd
   OBJECT_DIR = Source\Engine\CMakeFiles\Engine.dir
@@ -204,7 +204,79 @@ build Source/Engine/CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
 build Source/Engine/rebuild_cache: phony Source/Engine/CMakeFiles/rebuild_cache.util
 
 # =============================================================================
+# Write statements declared in CMakeLists.txt:
+# D:/Project/RandEngine/Source/CMakeLists.txt
+# =============================================================================
+
+# =============================================================================
+# Object build statements for STATIC_LIBRARY target Core
+
+
+#############################################
+# Order-only phony target for Core
+
+build cmake_object_order_depends_target_Core: phony || .
+
+build Source/Core/CMakeFiles/Core.dir/Objects/BaseObject/BaseObject.cpp.obj: CXX_COMPILER__Core_unscanned_Debug D$:/Project/RandEngine/Source/Core/Objects/BaseObject/BaseObject.cpp || cmake_object_order_depends_target_Core
+  CONFIG = Debug
+  DEP_FILE = Source\Core\CMakeFiles\Core.dir\Objects\BaseObject\BaseObject.cpp.obj.d
+  FLAGS = -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -std=gnu++23
+  INCLUDES = -ID:/Project/RandEngine/Source/Core -ID:/Project/RandEngine/Source/Core/Objects/BaseObject
+  OBJECT_DIR = Source\Core\CMakeFiles\Core.dir
+  OBJECT_FILE_DIR = Source\Core\CMakeFiles\Core.dir\Objects\BaseObject
+  TARGET_COMPILE_PDB = Source\Core\CMakeFiles\Core.dir\Core.pdb
+  TARGET_PDB = Source\Core\Core.pdb
+  TARGET_SUPPORT_DIR = Source\Core\CMakeFiles\Core.dir
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target Core
+
+
+#############################################
+# Link the static library Source\Core\Core.lib
+
+build Source/Core/Core.lib: CXX_STATIC_LIBRARY_LINKER__Core_Debug Source/Core/CMakeFiles/Core.dir/Objects/BaseObject/BaseObject.cpp.obj
+  CONFIG = Debug
+  LANGUAGE_COMPILE_FLAGS = -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd
+  OBJECT_DIR = Source\Core\CMakeFiles\Core.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_COMPILE_PDB = Source\Core\CMakeFiles\Core.dir\Core.pdb
+  TARGET_FILE = Source\Core\Core.lib
+  TARGET_PDB = Source\Core\Core.pdb
+  TARGET_SUPPORT_DIR = Source\Core\CMakeFiles\Core.dir
+
+
+#############################################
+# Utility command for edit_cache
+
+build Source/Core/CMakeFiles/edit_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D D:\Project\RandEngine\Build\Source\Core && D:\Dev\CMake\bin\cmake-gui.exe -SD:\Project\RandEngine -BD:\Project\RandEngine\Build"
+  DESC = Running CMake cache editor...
+  pool = console
+  restat = 1
+
+build Source/Core/edit_cache: phony Source/Core/CMakeFiles/edit_cache.util
+
+
+#############################################
+# Utility command for rebuild_cache
+
+build Source/Core/CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D D:\Project\RandEngine\Build\Source\Core && D:\Dev\CMake\bin\cmake.exe --regenerate-during-build -SD:\Project\RandEngine -BD:\Project\RandEngine\Build"
+  DESC = Running CMake to regenerate build system...
+  pool = console
+  restat = 1
+
+build Source/Core/rebuild_cache: phony Source/Core/CMakeFiles/rebuild_cache.util
+
+# =============================================================================
 # Target aliases.
+
+build Core: phony Source/Core/Core.lib
+
+build Core.lib: phony Source/Core/Core.lib
 
 build Engine: phony Source/Engine/Engine.lib
 
@@ -227,7 +299,14 @@ build all: phony Source/all
 #############################################
 # Folder: D:/Project/RandEngine/Build/Source
 
-build Source/all: phony RandEngine.exe Source/Engine/all
+build Source/all: phony RandEngine.exe Source/Engine/all Source/Core/all
+
+# =============================================================================
+
+#############################################
+# Folder: D:/Project/RandEngine/Build/Source/Core
+
+build Source/Core/all: phony Source/Core/Core.lib
 
 # =============================================================================
 
@@ -257,14 +336,14 @@ build D$:/Project/RandEngine/Build/CMakeFiles/cmake.verify_globs: VERIFY_GLOBS |
 #############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja D$:/Project/RandEngine/Build/cmake_install.cmake D$:/Project/RandEngine/Build/Source/cmake_install.cmake D$:/Project/RandEngine/Build/Source/Engine/cmake_install.cmake: RERUN_CMAKE D$:/Project/RandEngine/Build/CMakeFiles/cmake.verify_globs | CMakeCache.txt CMakeFiles/4.4.2/CMakeCCompiler.cmake CMakeFiles/4.4.2/CMakeCXXCompiler.cmake CMakeFiles/4.4.2/CMakeRCCompiler.cmake CMakeFiles/4.4.2/CMakeSystem.cmake D$:/Project/RandEngine/Build/CMakeFiles/VerifyGlobs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCXXInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCommonLanguageInclude.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeGenericSystem.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeInitializeConfigs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeLanguageInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeRCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInitialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/CMakeCommonCompilerMacros.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCXXLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCommonLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Initialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/WindowsPaths.cmake D$:/Project/RandEngine/CMakeLists.txt D$:/Project/RandEngine/Source/CMakeLists.txt D$:/Project/RandEngine/Source/Engine/CMakeLists.txt
+build build.ninja D$:/Project/RandEngine/Build/cmake_install.cmake D$:/Project/RandEngine/Build/Source/cmake_install.cmake D$:/Project/RandEngine/Build/Source/Engine/cmake_install.cmake D$:/Project/RandEngine/Build/Source/Core/cmake_install.cmake: RERUN_CMAKE D$:/Project/RandEngine/Build/CMakeFiles/cmake.verify_globs | CMakeCache.txt CMakeFiles/4.4.2/CMakeCCompiler.cmake CMakeFiles/4.4.2/CMakeCXXCompiler.cmake CMakeFiles/4.4.2/CMakeRCCompiler.cmake CMakeFiles/4.4.2/CMakeSystem.cmake D$:/Project/RandEngine/Build/CMakeFiles/VerifyGlobs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCXXInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCommonLanguageInclude.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeGenericSystem.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeInitializeConfigs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeLanguageInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeRCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInitialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/CMakeCommonCompilerMacros.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCXXLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCommonLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Initialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/WindowsPaths.cmake D$:/Project/RandEngine/CMakeLists.txt D$:/Project/RandEngine/Source/CMakeLists.txt D$:/Project/RandEngine/Source/Core/CMakeLists.txt D$:/Project/RandEngine/Source/Engine/CMakeLists.txt
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build CMakeCache.txt CMakeFiles/4.4.2/CMakeCCompiler.cmake CMakeFiles/4.4.2/CMakeCXXCompiler.cmake CMakeFiles/4.4.2/CMakeRCCompiler.cmake CMakeFiles/4.4.2/CMakeSystem.cmake D$:/Project/RandEngine/Build/CMakeFiles/VerifyGlobs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCXXInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCommonLanguageInclude.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeGenericSystem.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeInitializeConfigs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeLanguageInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeRCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInitialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/CMakeCommonCompilerMacros.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCXXLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCommonLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Initialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/WindowsPaths.cmake D$:/Project/RandEngine/CMakeLists.txt D$:/Project/RandEngine/Source/CMakeLists.txt D$:/Project/RandEngine/Source/Engine/CMakeLists.txt: phony
+build CMakeCache.txt CMakeFiles/4.4.2/CMakeCCompiler.cmake CMakeFiles/4.4.2/CMakeCXXCompiler.cmake CMakeFiles/4.4.2/CMakeRCCompiler.cmake CMakeFiles/4.4.2/CMakeSystem.cmake D$:/Project/RandEngine/Build/CMakeFiles/VerifyGlobs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCXXInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeCommonLanguageInclude.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeGenericSystem.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeInitializeConfigs.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeLanguageInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeRCInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/CMakeSystemSpecificInitialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/CMakeCommonCompilerMacros.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Compiler/Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCXXLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Internal/CMakeCommonLinkerInformation.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Linker/MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-LLD.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Linker/Windows-MSVC.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-C.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang-CXX.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Clang.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows-Initialize.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/Windows.cmake D$:/Dev/CMake/share/cmake-4.4/Modules/Platform/WindowsPaths.cmake D$:/Project/RandEngine/CMakeLists.txt D$:/Project/RandEngine/Source/CMakeLists.txt D$:/Project/RandEngine/Source/Core/CMakeLists.txt D$:/Project/RandEngine/Source/Engine/CMakeLists.txt: phony
 
 
 #############################################

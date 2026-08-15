@@ -3,7 +3,8 @@
 	[
 		"D:/Project/RandEngine/Build/cmake_install.cmake",
 		"D:/Project/RandEngine/Build/Source/cmake_install.cmake",
-		"D:/Project/RandEngine/Build/Source/Engine/cmake_install.cmake"
+		"D:/Project/RandEngine/Build/Source/Engine/cmake_install.cmake",
+		"D:/Project/RandEngine/Build/Source/Core/cmake_install.cmake"
 	],
 	"Parallel" : false
 }
