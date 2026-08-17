@@ -1,3 +1,4 @@
+#pragma once
 #include <cstdint>
 
 namespace RandEngine::Core::Objects {
@@ -6,6 +7,6 @@ namespace RandEngine::Core::Objects {
               
         BaseObject();
 
-        ~BaseObject();
+        virtual ~BaseObject();
     };
 }
