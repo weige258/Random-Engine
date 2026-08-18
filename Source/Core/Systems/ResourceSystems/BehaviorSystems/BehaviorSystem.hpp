@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Behaviors/BaseBehavior/BaseBehavior.hpp"
+#include "Behaviors/BaseBehavior/BaseBehavior.hpp"
 #include <memory>
 #include<vector>
 namespace RandEngine::Core::Systems::BehaviorSystems{

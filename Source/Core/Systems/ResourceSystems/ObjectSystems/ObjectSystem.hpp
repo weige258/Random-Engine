@@ -1,6 +1,9 @@
 #pragma once
 #include "Containers/SparseSet.hpp"
 #include "Objects/BaseObject/BaseObject.hpp"
+#include "Memory/MasterPtr.hpp"
+#include "Memory/ObserverPtr.hpp"
+#include "Behaviors/BaseBehavior/ISystemUpdateBehavior.hpp"
 #include "Config.hpp"
 #include <memory>
 #include <span>
@@ -11,7 +14,7 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
     class ObjectSystem
     {
     private:
-        RandEngine::Core::Containers::SparseSet<std::shared_ptr<Objects::BaseObject>, RandEngine::Core::Config::ObjectIDType> objects;
+        RandEngine::Core::Containers::SparseSet<Memory::MasterPtr<Objects::BaseObject>, RandEngine::Core::Config::ObjectIDType> objects;
 
     public:
         // 获取对象
@@ -23,43 +26,48 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
         template <typename U>
         U &Get(const Config::ObjectIDType &id)
         {
-            return *std::static_pointer_cast<U>(objects.Get(id));
+            return dynamic_cast<U &>(Get(id));
         }
 
-        Objects::BaseObject *GetPtr(const Config::ObjectIDType &id)
+        Memory::ObserverPtr<Objects::BaseObject> GetPtr(const Config::ObjectIDType &id)
         {
-            auto *ptr = objects.GetPtr(id);
-            if (!ptr)
-                return nullptr;
+            if (auto *master_ptr = objects.GetPtr(id))
+            {
+                return Memory::ObserverPtr<Objects::BaseObject>(*master_ptr);
+            }
 
-            return ptr->get();
+            return {};
         }
 
         template <typename U>
-        U *GetPtr(const Config::ObjectIDType &id)
+        Memory::ObserverPtr<U> GetPtr(const Config::ObjectIDType &id)
         {
-            auto *ptr = objects.GetPtr(id);
-            if (!ptr)
-                return nullptr;
-
-            return std::static_pointer_cast<U>(*ptr).get();
+            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
+            if (auto *master_ptr = objects.GetPtr(id))
+            {
+                if (dynamic_cast<U *>(master_ptr->Get()) != nullptr)
+                {
+                    return Memory::ObserverPtr<U>(*master_ptr);
+                }
+            }
+            return {};
         }
 
-        auto GetAll() noexcept
+        [[nodiscard]] auto GetAll() noexcept
         {
-            return objects.GetAll() | std::views::transform([](const std::shared_ptr<Objects::BaseObject> &ptr) -> Objects::BaseObject &
-                                                            { return *ptr; });
+            return objects.GetAll() | std::views::transform([](auto &master_ptr) -> Objects::BaseObject &
+                                                            { return *master_ptr; });
         }
 
-        std::vector<Objects::BaseObject *> GetAll() const
+        std::vector<Memory::ObserverPtr<Objects::BaseObject>> GetAllPtr() const
         {
-            std::vector<Objects::BaseObject *> result;
+            std::vector<Memory::ObserverPtr<Objects::BaseObject>> result;
             auto raw_span = objects.GetAll();
             result.reserve(raw_span.size());
             for (const auto &ptr : raw_span)
             {
                 if (ptr)
-                    result.push_back(ptr.get());
+                    result.emplace_back(ptr);
             }
             return result;
         }
@@ -67,35 +75,30 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
         template <typename U>
         auto GetAll()
         {
-            static_assert(std::is_base_of_v<Objects::BaseObject, U>, "U must derive from BaseObject!");
+            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
-            return objects.GetAll() | std::views::filter([](const std::shared_ptr<Objects::BaseObject> &ptr)
-                                                         { return ptr && dynamic_cast<U *>(ptr.get()) != nullptr; }) |
-                   std::views::transform([](const std::shared_ptr<Objects::BaseObject> &ptr) -> U &
-                                         { return *static_cast<U *>(ptr.get()); });
+            return objects.GetAll() | std::views::filter([](const auto &ptr)
+                                                         { return ptr && dynamic_cast<U *>(ptr.Get()) != nullptr; }) |
+                   std::views::transform([](const auto &ptr) -> U &
+                                         { return *dynamic_cast<U *>(ptr.Get()); });
         }
 
         template <typename U>
-        std::vector<U *> GetAll() const
+        std::vector<Memory::ObserverPtr<U>> GetAllPtr() const
         {
-            static_assert(std::is_base_of_v<Objects::BaseObject, U>, "U must derive from Objects::BaseObject!");
+            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
-            std::vector<U *> result;
+            std::vector<Memory::ObserverPtr<U>> result;
             auto raw_span = objects.GetAll();
-
             result.reserve(raw_span.size());
 
             for (const auto &ptr : raw_span)
             {
-                if (ptr)
+                if (ptr && dynamic_cast<U *>(ptr.Get()) != nullptr)
                 {
-                    if (auto *derived = dynamic_cast<U *>(ptr.get()))
-                    {
-                        result.push_back(derived);
-                    }
+                    result.emplace_back(ptr);
                 }
             }
-
             return result;
         }
 
@@ -111,20 +114,20 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
         template <typename U>
         [[nodiscard]] auto GetAllWithID()
         {
-            static_assert(std::is_base_of_v<Objects::BaseObject, U>, "U must derive from BaseObject!");
+            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
             auto ids = objects.GetAllIDs();
             auto datas = objects.GetAll();
 
             return std::views::iota(size_t(0), objects.Size()) | std::views::filter([datas](size_t i)
-                                                                                    { return datas[i] && dynamic_cast<U *>(datas[i].get()) != nullptr; }) |
+                                                                                    { return datas[i] && dynamic_cast<U *>(datas[i].Get()) != nullptr; }) |
                    std::views::transform([ids, datas](size_t i) -> std::pair<Config::ObjectIDType, U &>
-                                         { return {ids[i], *static_cast<U *>(datas[i].get())}; });
+                                         { return {ids[i], *dynamic_cast<U *>(datas[i].Get())}; });
         }
 
-        [[nodiscard]] std::vector<std::pair<Config::ObjectIDType, Objects::BaseObject *>> GetAllWithID() const
+        [[nodiscard]] std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<Objects::BaseObject>>> GetAllPtrWithID() const
         {
-            std::vector<std::pair<Config::ObjectIDType, Objects::BaseObject *>> result;
+            std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<Objects::BaseObject>>> result;
             auto ids = objects.GetAllIDs();
             auto datas = objects.GetAll();
 
@@ -133,30 +136,27 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             {
                 if (datas[i])
                 {
-                    result.emplace_back(ids[i], datas[i].get());
+                    result.emplace_back(ids[i], Memory::ObserverPtr<Objects::BaseObject>(datas[i]));
                 }
             }
             return result;
         }
 
         template <typename U>
-        std::vector<std::pair<Config::ObjectIDType, U *>> GetAllWithID() const
+        std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<U>>> GetAllPtrWithID() const
         {
-            static_assert(std::is_base_of_v<Objects::BaseObject, U>, "U must derive from Objects::BaseObject!");
+            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
-            std::vector<std::pair<Config::ObjectIDType, U *>> result;
+            std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<U>>> result;
             auto ids = objects.GetAllIDs();
             auto datas = objects.GetAll();
 
             result.reserve(datas.size());
             for (size_t i = 0; i < datas.size(); ++i)
             {
-                if (datas[i])
+                if (datas[i] && dynamic_cast<U *>(datas[i].Get()) != nullptr)
                 {
-                    if (auto *derived = dynamic_cast<U *>(datas[i].get()))
-                    {
-                        result.emplace_back(ids[i], derived);
-                    }
+                    result.emplace_back(ids[i], Memory::ObserverPtr<U>(datas[i]));
                 }
             }
             return result;
@@ -170,7 +170,7 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             static_assert(std::is_base_of_v<Objects::BaseObject, RawType>,
                           "U must derive from BaseObject!");
 
-            auto ptr = std::make_shared<RawType>(std::forward<U>(object));
+            Memory::MasterPtr<Objects::BaseObject> ptr(new RawType(std::forward<U>(object)));
 
             Config::ObjectIDType id = objects.AllocateID();
             ptr->id = id;
@@ -190,19 +190,19 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             return ids;
         }
 
-        std::vector<Config::ObjectIDType> Add(const std::vector<std::shared_ptr<Objects::BaseObject>> &container)
+        std::vector<Config::ObjectIDType> Add(std::vector<Memory::MasterPtr<Objects::BaseObject>> &&container)
         {
             std::vector<Config::ObjectIDType> ids;
             ids.reserve(container.size());
 
-            for (const auto &ptr : container)
+            for (auto &ptr : container)
             {
                 if (!ptr)
                     continue;
 
                 Config::ObjectIDType id = objects.AllocateID();
                 ptr->id = id;
-                objects.Insert(id, ptr);
+                objects.Insert(id, std::move(ptr)); // 完美匹配 SparseSet::Insert(id, DataType&&)
                 ids.push_back(id);
             }
 
@@ -213,6 +213,30 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
         bool Delete(const Config::ObjectIDType id)
         {
             return objects.Delete(id);
+        }
+
+    private:
+        void UpdateSystemObjects()
+        {
+            for (auto &system_update_object : GetAll<Behaviors::ISystemUpdateBehavior>())
+            {
+                system_update_object.SystemUpdate();
+            }
+        }
+
+    public:
+        // 系统执行
+        void Init()
+        {
+        }
+
+        void Run()
+        {
+            UpdateSystemObjects();
+        }
+
+        void Destroy()
+        {
         }
     };
 };

@@ -1,5 +1,6 @@
 #pragma once
-#include "Systems/ResourceSystems/ObjectSystems/ObjectSystem.hpp"
+#include "ObjectSystems/ObjectSystem.hpp"
+#include "BehaviorSystems/BehaviorSystem.hpp"
 
 namespace RandEngine::Core::Systems::ResourceSystems {
     
@@ -7,6 +8,7 @@ namespace RandEngine::Core::Systems::ResourceSystems {
         
     public:    
         ObjectSystems::ObjectSystem object_system;
+        BehaviorSystems::BehaviorSystem behavior_system;
 
         void Init();
 

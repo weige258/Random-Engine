@@ -40,8 +40,6 @@ namespace RandEngine::Core::Containers
             dense_data.reserve(cap);
         }
 
-        ~SparseSet() = default;
-
         // id分配 查询
         IndexType AllocateID()
         {

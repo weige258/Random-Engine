@@ -10,7 +10,7 @@ namespace RandEngine::Core::Systems
 
     void System::Run()
     {
-
+        resource_system.Run();
     }
 
     void System::Destory()
