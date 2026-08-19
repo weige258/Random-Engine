@@ -5,9 +5,9 @@
 namespace RandEngine::Engine
 {
 
-    class EngineApplication
+    class EngineMain
     {
-        
+
     private:
         bool is_running = true;
 

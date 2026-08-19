@@ -1,23 +1,24 @@
-#include "EngineApplication.hpp"
+#include "EngineMain.hpp"
 #include "Systems/System.hpp"
 
 namespace RandEngine::Engine
 {
-        
-        void EngineApplication::Init()
+
+        void EngineMain::Init()
         {
                 system = new RandEngine::Core::Systems::System();
                 this->system->Init();
         }
 
-        void EngineApplication::Run() {
+        void EngineMain::Run()
+        {
                 while (is_running)
                 {
                         this->system->Run();
                 }
         }
 
-        void EngineApplication::Destroy()
+        void EngineMain::Destroy()
         {
                 this->system->Destory();
                 delete this->system;

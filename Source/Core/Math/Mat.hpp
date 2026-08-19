@@ -63,7 +63,18 @@ namespace RandEngine::Core::Math
         };
 
         template <typename T, size_t Row, size_t Col>
-        inline constexpr bool MatUseSIMD = simd::SupportsSIMD<T> && (simd::SIMDWidth<T> > 1) && (Row * Col >= simd::SIMDWidth<T>);
+        inline constexpr bool MatUseSIMD = RandEngine::Platform::SIMD::SupportsSIMD<T> && (RandEngine::Platform::SIMD::SIMDWidth<T> > 1) && (Row * Col >= RandEngine::Platform::SIMD::SIMDWidth<T>);
+
+        // 内部辅助：按索引收集元素构成 SIMD 向量（等价于临时 simd::gather）
+        template <typename T>
+        inline auto Gather(const T* base, const std::size_t* idx)
+        {
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            alignas(RandEngine::Platform::SIMD::SIMDAlignment) T tmp[W];
+            for (std::size_t k = 0; k < W; ++k)
+                tmp[k] = base[idx[k]];
+            return RandEngine::Platform::SIMD::LoadU<T>(tmp);
+        }
     }
 
     // 矩阵视图类型声明
@@ -391,8 +402,25 @@ namespace RandEngine::Core::Math
         // 就地填充标量
         constexpr Mat &SetValue(T value)
         {
-            for (size_t i = 0; i < Row * Col; ++i)
-                m_data[i] = value;
+            if constexpr (Detail::MatUseSIMD<T, Row, Col>)
+            {
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+                auto v = RandEngine::Platform::SIMD::Set1<T>(value);
+                std::size_t i = 0;
+                for (; i + W <= Row * Col; i += W)
+                {
+                    RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], v);
+                }
+                for (; i < Row * Col; ++i)
+                {
+                    m_data[i] = value;
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < Row * Col; ++i)
+                    m_data[i] = value;
+            }
             return *this;
         }
 
@@ -545,12 +573,12 @@ namespace RandEngine::Core::Math
         {
             if constexpr (Detail::MatUseSIMD<T, Row, Col>)
             {
-                auto v = simd::set1<T>(value);
-                constexpr std::size_t W = simd::SIMDWidth<T>;
+                auto v = RandEngine::Platform::SIMD::Set1<T>(value);
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    simd::storeu<T>(&m_data[i], v);
+                    RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], v);
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -576,13 +604,13 @@ namespace RandEngine::Core::Math
             Mat<ResultType, Row, Col> result;
             if constexpr (Detail::CanUseSIMD<T, U> && Detail::MatUseSIMD<ResultType, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<ResultType>;
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                    auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                    simd::storeu<ResultType>(&result.m_data[i], simd::add<ResultType>(a, b));
+                    auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                    auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Add<ResultType>(a, b));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -606,13 +634,13 @@ namespace RandEngine::Core::Math
             Mat<ResultType, Row, Col> result;
             if constexpr (Detail::CanUseSIMD<T, U> && Detail::MatUseSIMD<ResultType, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<ResultType>;
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                    auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                    simd::storeu<ResultType>(&result.m_data[i], simd::sub<ResultType>(a, b));
+                    auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                    auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<ResultType>(a, b));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -634,16 +662,45 @@ namespace RandEngine::Core::Math
         {
             using ResultType = std::common_type_t<T, U>;
             Mat<ResultType, Row, OtherCol> result;
-            for (size_t r = 0; r < Row; ++r)
+            if constexpr (Detail::CanUseSIMD<T, U> &&
+                          (Col % RandEngine::Platform::SIMD::SIMDWidth<ResultType> == 0) &&
+                          Detail::MatUseSIMD<ResultType, Row, OtherCol>)
             {
-                for (size_t c = 0; c < OtherCol; ++c)
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+                constexpr std::size_t Blocks = Col / W;
+                for (std::size_t r = 0; r < Row; ++r)
                 {
-                    ResultType sum = 0;
-                    for (size_t k = 0; k < Col; ++k)
+                    for (std::size_t c = 0; c < OtherCol; ++c)
                     {
-                        sum += static_cast<ResultType>(lhs[r * Col + k]) * static_cast<ResultType>(rhs[k * OtherCol + c]);
+                        auto sum = RandEngine::Platform::SIMD::Zero<ResultType>();
+                        for (std::size_t b = 0; b < Blocks; ++b)
+                        {
+                            auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[r * Col + b * W]);
+                            std::size_t idx[W];
+                            for (std::size_t k = 0; k < W; ++k)
+                            {
+                                idx[k] = (b * W + k) * OtherCol + c;
+                            }
+                            auto rb = Detail::Gather<ResultType>(&rhs.m_data[0], idx);
+                            sum = RandEngine::Platform::SIMD::FMAdd<ResultType>(a, rb, sum);
+                        }
+                        result[r * OtherCol + c] = RandEngine::Platform::SIMD::HAdd<ResultType>(sum);
                     }
-                    result[r * OtherCol + c] = sum;
+                }
+            }
+            else
+            {
+                for (size_t r = 0; r < Row; ++r)
+                {
+                    for (size_t c = 0; c < OtherCol; ++c)
+                    {
+                        ResultType sum = 0;
+                        for (size_t k = 0; k < Col; ++k)
+                        {
+                            sum += static_cast<ResultType>(lhs[r * Col + k]) * static_cast<ResultType>(rhs[k * OtherCol + c]);
+                        }
+                        result[r * OtherCol + c] = sum;
+                    }
                 }
             }
             return result;
@@ -654,14 +711,35 @@ namespace RandEngine::Core::Math
         {
             using ResultType = std::common_type_t<T, U>;
             Vec<ResultType, Row> result;
-            for (size_t r = 0; r < Row; ++r)
+            if constexpr (Detail::CanUseSIMD<T, U> &&
+                          (Col % RandEngine::Platform::SIMD::SIMDWidth<ResultType> == 0) &&
+                          Detail::VecUseSIMD<ResultType, Row>)
             {
-                ResultType sum = 0;
-                for (size_t c = 0; c < Col; ++c)
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+                constexpr std::size_t Blocks = Col / W;
+                for (std::size_t r = 0; r < Row; ++r)
                 {
-                    sum += static_cast<ResultType>(lhs[r * Col + c]) * static_cast<ResultType>(rhs[c]);
+                    auto sum = RandEngine::Platform::SIMD::Zero<ResultType>();
+                    for (std::size_t b = 0; b < Blocks; ++b)
+                    {
+                        auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[r * Col + b * W]);
+                        auto vb = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs[b * W]);
+                        sum = RandEngine::Platform::SIMD::FMAdd<ResultType>(a, vb, sum);
+                    }
+                    result[r] = RandEngine::Platform::SIMD::HAdd<ResultType>(sum);
                 }
-                result[r] = sum;
+            }
+            else
+            {
+                for (size_t r = 0; r < Row; ++r)
+                {
+                    ResultType sum = 0;
+                    for (size_t c = 0; c < Col; ++c)
+                    {
+                        sum += static_cast<ResultType>(lhs[r * Col + c]) * static_cast<ResultType>(rhs[c]);
+                    }
+                    result[r] = sum;
+                }
             }
             return result;
         }
@@ -671,14 +749,40 @@ namespace RandEngine::Core::Math
         {
             using ResultType = std::common_type_t<T, U>;
             Vec<ResultType, Col> result;
-            for (size_t c = 0; c < Col; ++c)
+            if constexpr (Detail::CanUseSIMD<T, U> &&
+                          (Row % RandEngine::Platform::SIMD::SIMDWidth<ResultType> == 0) &&
+                          Detail::VecUseSIMD<ResultType, Col>)
             {
-                ResultType sum = 0;
-                for (size_t r = 0; r < Row; ++r)
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+                constexpr std::size_t Blocks = Row / W;
+                for (std::size_t c = 0; c < Col; ++c)
                 {
-                    sum += static_cast<ResultType>(lhs[r]) * static_cast<ResultType>(rhs[r * Col + c]);
+                    auto sum = RandEngine::Platform::SIMD::Zero<ResultType>();
+                    for (std::size_t b = 0; b < Blocks; ++b)
+                    {
+                        auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs[b * W]);
+                        std::size_t idx[W];
+                        for (std::size_t k = 0; k < W; ++k)
+                        {
+                            idx[k] = (b * W + k) * Col + c;
+                        }
+                        auto rb = Detail::Gather<ResultType>(&rhs.m_data[0], idx);
+                        sum = RandEngine::Platform::SIMD::FMAdd<ResultType>(a, rb, sum);
+                    }
+                    result[c] = RandEngine::Platform::SIMD::HAdd<ResultType>(sum);
                 }
-                result[c] = sum;
+            }
+            else
+            {
+                for (size_t c = 0; c < Col; ++c)
+                {
+                    ResultType sum = 0;
+                    for (size_t r = 0; r < Row; ++r)
+                    {
+                        sum += static_cast<ResultType>(lhs[r]) * static_cast<ResultType>(rhs[r * Col + c]);
+                    }
+                    result[c] = sum;
+                }
             }
             return result;
         }
@@ -688,13 +792,13 @@ namespace RandEngine::Core::Math
             Mat<T, Row, Col> result;
             if constexpr (Detail::MatUseSIMD<T, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<T>;
-                auto z = simd::zero<T>();
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+                auto z = RandEngine::Platform::SIMD::Zero<T>();
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<T>(&m_data[i]);
-                    simd::storeu<T>(&result.m_data[i], simd::sub<T>(z, a));
+                    auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<T>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<T>(z, a));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -717,13 +821,13 @@ namespace RandEngine::Core::Math
         {
             if constexpr (Detail::MatUseSIMD<T, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<T>;
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<T>(&m_data[i]);
-                    auto b = simd::loadu<T>(&other.m_data[i]);
-                    simd::storeu<T>(&m_data[i], simd::add<T>(a, b));
+                    auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                    auto b = RandEngine::Platform::SIMD::LoadU<T>(&other.m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Add<T>(a, b));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -744,13 +848,13 @@ namespace RandEngine::Core::Math
         {
             if constexpr (Detail::MatUseSIMD<T, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<T>;
-                auto sv = simd::set1<T>(value);
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+                auto sv = RandEngine::Platform::SIMD::Set1<T>(value);
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<T>(&m_data[i]);
-                    simd::storeu<T>(&m_data[i], simd::add<T>(a, sv));
+                    auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Add<T>(a, sv));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -771,13 +875,13 @@ namespace RandEngine::Core::Math
         {
             if constexpr (Detail::MatUseSIMD<T, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<T>;
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<T>(&m_data[i]);
-                    auto b = simd::loadu<T>(&other.m_data[i]);
-                    simd::storeu<T>(&m_data[i], simd::sub<T>(a, b));
+                    auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                    auto b = RandEngine::Platform::SIMD::LoadU<T>(&other.m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Sub<T>(a, b));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -798,13 +902,13 @@ namespace RandEngine::Core::Math
         {
             if constexpr (Detail::MatUseSIMD<T, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<T>;
-                auto sv = simd::set1<T>(value);
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+                auto sv = RandEngine::Platform::SIMD::Set1<T>(value);
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<T>(&m_data[i]);
-                    simd::storeu<T>(&m_data[i], simd::sub<T>(a, sv));
+                    auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Sub<T>(a, sv));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -828,16 +932,45 @@ namespace RandEngine::Core::Math
 
             using R = std::common_type_t<T, U>;
             Mat<R, Row, Col> temp;
-            for (size_t r = 0; r < Row; ++r)
+            if constexpr (Detail::CanUseSIMD<T, U> &&
+                          (Col % RandEngine::Platform::SIMD::SIMDWidth<R> == 0) &&
+                          Detail::MatUseSIMD<R, Row, Col>)
             {
-                for (size_t c = 0; c < Col; ++c)
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+                constexpr std::size_t Blocks = Col / W;
+                for (std::size_t r = 0; r < Row; ++r)
                 {
-                    R sum = 0;
-                    for (size_t k = 0; k < Col; ++k)
+                    for (std::size_t c = 0; c < Col; ++c)
                     {
-                        sum += static_cast<R>((*this)[r, k]) * static_cast<R>(rhs[k, c]);
+                        auto sum = RandEngine::Platform::SIMD::Zero<R>();
+                        for (std::size_t b = 0; b < Blocks; ++b)
+                        {
+                            auto a = RandEngine::Platform::SIMD::LoadU<R>(&m_data[r * Col + b * W]);
+                            std::size_t idx[W];
+                            for (std::size_t k = 0; k < W; ++k)
+                            {
+                                idx[k] = (b * W + k) * Col + c;
+                            }
+                            auto rb = Detail::Gather<R>(&rhs.m_data[0], idx);
+                            sum = RandEngine::Platform::SIMD::FMAdd<R>(a, rb, sum);
+                        }
+                        temp[r * Col + c] = RandEngine::Platform::SIMD::HAdd<R>(sum);
                     }
-                    temp[r, c] = sum;
+                }
+            }
+            else
+            {
+                for (size_t r = 0; r < Row; ++r)
+                {
+                    for (size_t c = 0; c < Col; ++c)
+                    {
+                        R sum = 0;
+                        for (size_t k = 0; k < Col; ++k)
+                        {
+                            sum += static_cast<R>((*this)[r, k]) * static_cast<R>(rhs[k, c]);
+                        }
+                        temp[r, c] = sum;
+                    }
                 }
             }
             *this = Mat<T, Row, Col>(temp);
@@ -849,13 +982,13 @@ namespace RandEngine::Core::Math
         {
             if constexpr (Detail::MatUseSIMD<T, Row, Col>)
             {
-                constexpr std::size_t W = simd::SIMDWidth<T>;
-                auto sv = simd::set1<T>(static_cast<T>(scalar));
+                constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+                auto sv = RandEngine::Platform::SIMD::Set1<T>(static_cast<T>(scalar));
                 std::size_t i = 0;
                 for (; i + W <= Row * Col; i += W)
                 {
-                    auto a = simd::loadu<T>(&m_data[i]);
-                    simd::storeu<T>(&m_data[i], simd::mul<T>(a, sv));
+                    auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                    RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Mul<T>(a, sv));
                 }
                 for (; i < Row * Col; ++i)
                 {
@@ -922,13 +1055,13 @@ namespace RandEngine::Core::Math
         Mat<ResultType, Row, Col> result;
         if constexpr (Detail::MatUseSIMD<ResultType, Row, Col>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-            auto sv = simd::set1<ResultType>(static_cast<ResultType>(rhs));
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
             std::size_t i = 0;
             for (; i + W <= Row * Col; i += W)
             {
-                auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::add<ResultType>(a, sv));
+                auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Add<ResultType>(a, sv));
             }
             for (; i < Row * Col; ++i)
             {
@@ -950,13 +1083,13 @@ namespace RandEngine::Core::Math
         Mat<ResultType, Row, Col> result;
         if constexpr (Detail::MatUseSIMD<ResultType, Row, Col>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-            auto sv = simd::set1<ResultType>(static_cast<ResultType>(lhs));
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
             std::size_t i = 0;
             for (; i + W <= Row * Col; i += W)
             {
-                auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::add<ResultType>(sv, b));
+                auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Add<ResultType>(sv, b));
             }
             for (; i < Row * Col; ++i)
             {
@@ -978,13 +1111,13 @@ namespace RandEngine::Core::Math
         Mat<ResultType, Row, Col> result;
         if constexpr (Detail::MatUseSIMD<ResultType, Row, Col>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-            auto sv = simd::set1<ResultType>(static_cast<ResultType>(rhs));
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
             std::size_t i = 0;
             for (; i + W <= Row * Col; i += W)
             {
-                auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::sub<ResultType>(a, sv));
+                auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<ResultType>(a, sv));
             }
             for (; i < Row * Col; ++i)
             {
@@ -1006,13 +1139,13 @@ namespace RandEngine::Core::Math
         Mat<ResultType, Row, Col> result;
         if constexpr (Detail::MatUseSIMD<ResultType, Row, Col>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-            auto sv = simd::set1<ResultType>(static_cast<ResultType>(lhs));
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
             std::size_t i = 0;
             for (; i + W <= Row * Col; i += W)
             {
-                auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::sub<ResultType>(sv, b));
+                auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<ResultType>(sv, b));
             }
             for (; i < Row * Col; ++i)
             {
@@ -1034,13 +1167,13 @@ namespace RandEngine::Core::Math
         Mat<ResultType, Row, Col> result;
         if constexpr (Detail::MatUseSIMD<ResultType, Row, Col>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-            auto sv = simd::set1<ResultType>(static_cast<ResultType>(rhs));
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
             std::size_t i = 0;
             for (; i + W <= Row * Col; i += W)
             {
-                auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::mul<ResultType>(a, sv));
+                auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Mul<ResultType>(a, sv));
             }
             for (; i < Row * Col; ++i)
             {
@@ -1062,13 +1195,13 @@ namespace RandEngine::Core::Math
         Mat<ResultType, Row, Col> result;
         if constexpr (Detail::MatUseSIMD<ResultType, Row, Col>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-            auto sv = simd::set1<ResultType>(static_cast<ResultType>(lhs));
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
             std::size_t i = 0;
             for (; i + W <= Row * Col; i += W)
             {
-                auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::mul<ResultType>(sv, b));
+                auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Mul<ResultType>(sv, b));
             }
             for (; i < Row * Col; ++i)
             {

@@ -10,7 +10,7 @@
 #include <numbers>
 #include "Range.hpp"
 #include <stdexcept>
-#include "SimdUtils.hpp"
+#include "../../Platform/SIMD/SIMD.hpp"
 
 namespace RandEngine::Core::Math{
 
@@ -35,12 +35,12 @@ namespace Detail
 
     // SIMD 辅助：判断两个类型是否都支持 SIMD 且结果类型也支持
     template <typename T, typename U>
-    inline constexpr bool CanUseSIMD = std::is_same_v<T, U> && simd::SupportsSIMD<T> &&
-                                         simd::SupportsSIMD<U> &&
-                                         simd::SupportsSIMD<std::common_type_t<T, U>>;
+    inline constexpr bool CanUseSIMD = std::is_same_v<T, U> && RandEngine::Platform::SIMD::SupportsSIMD<T> &&
+                                         RandEngine::Platform::SIMD::SupportsSIMD<U> &&
+                                         RandEngine::Platform::SIMD::SupportsSIMD<std::common_type_t<T, U>>;
 
     template <typename T, std::size_t N>
-    inline constexpr bool VecUseSIMD = simd::SupportsSIMD<T> && (simd::SIMDWidth<T> > 1) && (N >= simd::SIMDWidth<T>);
+    inline constexpr bool VecUseSIMD = RandEngine::Platform::SIMD::SupportsSIMD<T> && (RandEngine::Platform::SIMD::SIMDWidth<T> > 1) && (N >= RandEngine::Platform::SIMD::SIMDWidth<T>);
 }
 
 // 视图声明
@@ -140,7 +140,7 @@ public:
     }
 
     static constexpr Vec<T,N> MakeZero(){
-         return Vec<T,N>{0};
+         return Vec<T,N>(static_cast<T>(0));
     }
 
     // 析构
@@ -309,15 +309,45 @@ public:
 
     // 就地填充标量
     constexpr Vec& SetZero(){
-        for (size_t i = 0; i < N; ++i)
-            m_data[i] = 0;
+        if constexpr (Detail::VecUseSIMD<T, N>)
+        {
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            auto z = RandEngine::Platform::SIMD::Zero<T>();
+            std::size_t i = 0;
+            for (; i + W <= N; i += W)
+            {
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], z);
+            }
+            for (; i < N; ++i)
+                m_data[i] = 0;
+        }
+        else
+        {
+            for (size_t i = 0; i < N; ++i)
+                m_data[i] = 0;
+        }
         return *this;
     }
 
     constexpr Vec &SetValue(T value)
     {
-        for (size_t i = 0; i < N; ++i)
-            m_data[i] = value;
+        if constexpr (Detail::VecUseSIMD<T, N>)
+        {
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            auto v = RandEngine::Platform::SIMD::Set1<T>(value);
+            std::size_t i = 0;
+            for (; i + W <= N; i += W)
+            {
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], v);
+            }
+            for (; i < N; ++i)
+                m_data[i] = value;
+        }
+        else
+        {
+            for (size_t i = 0; i < N; ++i)
+                m_data[i] = value;
+        }
         return *this;
     }
 
@@ -404,12 +434,12 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            auto v = simd::set1<T>(value);
-            constexpr std::size_t W = simd::SIMDWidth<T>;
+            auto v = RandEngine::Platform::SIMD::Set1<T>(value);
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                simd::storeu<T>(&m_data[i], v);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], v);
             }
             for (; i < N; ++i)
             {
@@ -434,13 +464,13 @@ public:
         Vec<ResultType, N> result;
         if constexpr (Detail::CanUseSIMD<T, U> && Detail::VecUseSIMD<ResultType, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::add<ResultType>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Add<ResultType>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -464,13 +494,13 @@ public:
         Vec<ResultType, N> result;
         if constexpr (Detail::CanUseSIMD<T, U> && Detail::VecUseSIMD<ResultType, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::sub<ResultType>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<ResultType>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -494,13 +524,13 @@ public:
         Vec<ResultType, N> result;
         if constexpr (Detail::CanUseSIMD<T, U> && Detail::VecUseSIMD<ResultType, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::mul<ResultType>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Mul<ResultType>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -524,13 +554,13 @@ public:
         Vec<ResultType, N> result;
         if constexpr (Detail::CanUseSIMD<T, U> && Detail::VecUseSIMD<ResultType, N> && !std::is_integral_v<ResultType>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<ResultType>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-                auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-                simd::storeu<ResultType>(&result.m_data[i], simd::div<ResultType>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Div<ResultType>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -552,13 +582,13 @@ public:
         Vec result{};
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
-            auto z = simd::zero<T>();
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            auto z = RandEngine::Platform::SIMD::Zero<T>();
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                simd::storeu<T>(&result.m_data[i], simd::sub<T>(z, a));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<T>(z, a));
             }
             for (; i < N; ++i)
             {
@@ -580,13 +610,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                auto b = simd::loadu<T>(&other.m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::add<T>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<T>(&other.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Add<T>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -607,13 +637,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
-            auto sv = simd::set1<T>(value);
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            auto sv = RandEngine::Platform::SIMD::Set1<T>(value);
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::add<T>(a, sv));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Add<T>(a, sv));
             }
             for (; i < N; ++i)
             {
@@ -634,13 +664,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                auto b = simd::loadu<T>(&other.m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::sub<T>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<T>(&other.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Sub<T>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -661,13 +691,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
-            auto sv = simd::set1<T>(value);
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            auto sv = RandEngine::Platform::SIMD::Set1<T>(value);
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::sub<T>(a, sv));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Sub<T>(a, sv));
             }
             for (; i < N; ++i)
             {
@@ -688,13 +718,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                auto b = simd::loadu<T>(&other.m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::mul<T>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<T>(&other.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Mul<T>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -715,13 +745,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
-            auto sv = simd::set1<T>(value);
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            auto sv = RandEngine::Platform::SIMD::Set1<T>(value);
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::mul<T>(a, sv));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Mul<T>(a, sv));
             }
             for (; i < N; ++i)
             {
@@ -742,13 +772,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N> && !std::is_integral_v<T>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                auto b = simd::loadu<T>(&other.m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::div<T>(a, b));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                auto b = RandEngine::Platform::SIMD::LoadU<T>(&other.m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Div<T>(a, b));
             }
             for (; i < N; ++i)
             {
@@ -769,13 +799,13 @@ public:
     {
         if constexpr (Detail::VecUseSIMD<T, N> && !std::is_integral_v<T>)
         {
-            constexpr std::size_t W = simd::SIMDWidth<T>;
-            auto sv = simd::set1<T>(value);
+            constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+            auto sv = RandEngine::Platform::SIMD::Set1<T>(value);
             std::size_t i = 0;
             for (; i + W <= N; i += W)
             {
-                auto a = simd::loadu<T>(&m_data[i]);
-                simd::storeu<T>(&m_data[i], simd::div<T>(a, sv));
+                auto a = RandEngine::Platform::SIMD::LoadU<T>(&m_data[i]);
+                RandEngine::Platform::SIMD::StoreU<T>(&m_data[i], RandEngine::Platform::SIMD::Div<T>(a, sv));
             }
             for (; i < N; ++i)
             {
@@ -988,13 +1018,13 @@ constexpr auto operator+(const Vec<T, N> &lhs, U rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(rhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::add<ResultType>(a, sv));
+            auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Add<ResultType>(a, sv));
         }
         for (; i < N; ++i)
         {
@@ -1016,13 +1046,13 @@ constexpr auto operator+(U lhs, const Vec<T, N> &rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(lhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::add<ResultType>(sv, b));
+            auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Add<ResultType>(sv, b));
         }
         for (; i < N; ++i)
         {
@@ -1044,13 +1074,13 @@ constexpr auto operator-(const Vec<T, N> &lhs, U rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(rhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::sub<ResultType>(a, sv));
+            auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<ResultType>(a, sv));
         }
         for (; i < N; ++i)
         {
@@ -1072,13 +1102,13 @@ constexpr auto operator-(U lhs, const Vec<T, N> &rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(lhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::sub<ResultType>(sv, b));
+            auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Sub<ResultType>(sv, b));
         }
         for (; i < N; ++i)
         {
@@ -1100,13 +1130,13 @@ constexpr auto operator*(const Vec<T, N> &lhs, U rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(rhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::mul<ResultType>(a, sv));
+            auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Mul<ResultType>(a, sv));
         }
         for (; i < N; ++i)
         {
@@ -1128,13 +1158,13 @@ constexpr auto operator*(U lhs, const Vec<T, N> &rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(lhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::mul<ResultType>(sv, b));
+            auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Mul<ResultType>(sv, b));
         }
         for (; i < N; ++i)
         {
@@ -1156,13 +1186,13 @@ constexpr auto operator/(const Vec<T, N> &lhs, U rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N> && !std::is_integral_v<ResultType>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(rhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto a = simd::loadu<ResultType>(&lhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::div<ResultType>(a, sv));
+            auto a = RandEngine::Platform::SIMD::LoadU<ResultType>(&lhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Div<ResultType>(a, sv));
         }
         for (; i < N; ++i)
         {
@@ -1184,13 +1214,13 @@ constexpr auto operator/(U lhs, const Vec<T, N> &rhs)
     Vec<ResultType, N> result;
     if constexpr (Detail::VecUseSIMD<ResultType, N> && !std::is_integral_v<ResultType>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sv = simd::set1<ResultType>(static_cast<ResultType>(lhs));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sv = RandEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
         std::size_t i = 0;
         for (; i + W <= N; i += W)
         {
-            auto b = simd::loadu<ResultType>(&rhs.m_data[i]);
-            simd::storeu<ResultType>(&result.m_data[i], simd::div<ResultType>(sv, b));
+            auto b = RandEngine::Platform::SIMD::LoadU<ResultType>(&rhs.m_data[i]);
+            RandEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandEngine::Platform::SIMD::Div<ResultType>(sv, b));
         }
         for (; i < N; ++i)
         {

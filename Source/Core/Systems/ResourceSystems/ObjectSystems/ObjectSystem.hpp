@@ -215,15 +215,6 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             return objects.Delete(id);
         }
 
-    private:
-        void UpdateSystemObjects()
-        {
-            for (auto &system_update_object : GetAll<Behaviors::ISystemUpdateBehavior>())
-            {
-                system_update_object.SystemUpdate();
-            }
-        }
-
     public:
         // 系统执行
         void Init()
@@ -232,7 +223,7 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
 
         void Run()
         {
-            UpdateSystemObjects();
+
         }
 
         void Destroy()

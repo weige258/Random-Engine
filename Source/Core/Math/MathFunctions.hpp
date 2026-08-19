@@ -124,19 +124,19 @@ auto Dot(const Vecs &...vecs)
                   (std::is_same_v<typename std::remove_cvref_t<Vecs>::vec_type_alias, ResultType> && ...) &&
                   Detail::VecUseSIMD<ResultType, N>)
     {
-        constexpr std::size_t W = simd::SIMDWidth<ResultType>;
-        auto sum_vec = simd::zero<ResultType>();
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultType>;
+        auto sum_vec = RandEngine::Platform::SIMD::Zero<ResultType>();
         std::size_t i = 0;
         auto tuple_vecs = std::forward_as_tuple(vecs...);
         const auto &v1 = std::get<0>(tuple_vecs);
         const auto &v2 = std::get<1>(tuple_vecs);
         for (; i + W <= N; i += W)
         {
-            auto va = simd::loadu<ResultType>(&v1[i]);
-            auto vb = simd::loadu<ResultType>(&v2[i]);
-            sum_vec = simd::fmadd<ResultType>(va, vb, sum_vec);
+            auto va = RandEngine::Platform::SIMD::LoadU<ResultType>(&v1[i]);
+            auto vb = RandEngine::Platform::SIMD::LoadU<ResultType>(&v2[i]);
+            sum_vec = RandEngine::Platform::SIMD::FMAdd<ResultType>(va, vb, sum_vec);
         }
-        ResultType total_sum = simd::hadd<ResultType>(sum_vec);
+        ResultType total_sum = RandEngine::Platform::SIMD::HAdd<ResultType>(sum_vec);
         for (; i < N; ++i)
         {
             total_sum += static_cast<ResultType>(v1[i]) * static_cast<ResultType>(v2[i]);
@@ -209,9 +209,32 @@ constexpr auto Hadamard(const Args &...args)
 
     Vec<ResultScalar, N> result;
 
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (Detail::VecUseSIMD<ResultScalar, N>)
     {
-        result[i] = (static_cast<ResultScalar>(args[i]) * ...);
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultScalar>;
+        auto tuple_vecs = std::forward_as_tuple(args...);
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto acc = [&]<std::size_t... Is>(std::index_sequence<Is...>)
+            {
+                auto v = RandEngine::Platform::SIMD::LoadU<ResultScalar>(&std::get<0>(tuple_vecs)[i]);
+                (..., (v = RandEngine::Platform::SIMD::Mul<ResultScalar>(v, RandEngine::Platform::SIMD::LoadU<ResultScalar>(&std::get<Is + 1>(tuple_vecs)[i]))));
+                return v;
+            }(std::make_index_sequence<sizeof...(Args) - 1>{});
+            RandEngine::Platform::SIMD::StoreU<ResultScalar>(&result[i], acc);
+        }
+        for (; i < N; ++i)
+        {
+            result[i] = (static_cast<ResultScalar>(args[i]) * ...);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            result[i] = (static_cast<ResultScalar>(args[i]) * ...);
+        }
     }
 
     return result;
@@ -318,9 +341,26 @@ constexpr Vec<T, N> Abs(const Vec<T, N> &v)
     requires(!std::is_unsigned_v<T>)
 {
     Vec<T, N> result;
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (Detail::VecUseSIMD<T, N>)
     {
-        result[i] = static_cast<T>(std::abs(v[i]));
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto a = RandEngine::Platform::SIMD::LoadU<T>(&v[i]);
+            RandEngine::Platform::SIMD::StoreU<T>(&result[i], RandEngine::Platform::SIMD::Abs<T>(a));
+        }
+        for (; i < N; ++i)
+        {
+            result[i] = static_cast<T>(std::abs(v[i]));
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            result[i] = static_cast<T>(std::abs(v[i]));
+        }
     }
     return result;
 }
@@ -331,11 +371,31 @@ constexpr auto Min(const Vec<T, N> &a, const Vec<U, N> &b)
 {
     using R = std::common_type_t<T, U>;
     Vec<R, N> result;
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (Detail::CanUseSIMD<T, U> && Detail::VecUseSIMD<R, N>)
     {
-        R av = static_cast<R>(a[i]);
-        R bv = static_cast<R>(b[i]);
-        result[i] = (av < bv) ? av : bv;
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto av = RandEngine::Platform::SIMD::LoadU<R>(&a[i]);
+            auto bv = RandEngine::Platform::SIMD::LoadU<R>(&b[i]);
+            RandEngine::Platform::SIMD::StoreU<R>(&result[i], RandEngine::Platform::SIMD::Min<R>(av, bv));
+        }
+        for (; i < N; ++i)
+        {
+            R av = static_cast<R>(a[i]);
+            R bv = static_cast<R>(b[i]);
+            result[i] = (av < bv) ? av : bv;
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            R av = static_cast<R>(a[i]);
+            R bv = static_cast<R>(b[i]);
+            result[i] = (av < bv) ? av : bv;
+        }
     }
     return result;
 }
@@ -346,11 +406,31 @@ constexpr auto Max(const Vec<T, N> &a, const Vec<U, N> &b)
 {
     using R = std::common_type_t<T, U>;
     Vec<R, N> result;
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (Detail::CanUseSIMD<T, U> && Detail::VecUseSIMD<R, N>)
     {
-        R av = static_cast<R>(a[i]);
-        R bv = static_cast<R>(b[i]);
-        result[i] = (av > bv) ? av : bv;
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto av = RandEngine::Platform::SIMD::LoadU<R>(&a[i]);
+            auto bv = RandEngine::Platform::SIMD::LoadU<R>(&b[i]);
+            RandEngine::Platform::SIMD::StoreU<R>(&result[i], RandEngine::Platform::SIMD::Max<R>(av, bv));
+        }
+        for (; i < N; ++i)
+        {
+            R av = static_cast<R>(a[i]);
+            R bv = static_cast<R>(b[i]);
+            result[i] = (av > bv) ? av : bv;
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            R av = static_cast<R>(a[i]);
+            R bv = static_cast<R>(b[i]);
+            result[i] = (av > bv) ? av : bv;
+        }
     }
     return result;
 }
@@ -361,12 +441,35 @@ constexpr auto Clamp(const Vec<T, N> &v, const Vec<U, N> &min, const Vec<V, N> &
 {
     using R = std::common_type_t<T, U, V>;
     Vec<R, N> result;
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (std::is_same_v<T, R> && std::is_same_v<U, R> && std::is_same_v<V, R> &&
+                  Detail::VecUseSIMD<R, N>)
     {
-        R val = static_cast<R>(v[i]);
-        R lo = static_cast<R>(min[i]);
-        R hi = static_cast<R>(max[i]);
-        result[i] = val < lo ? lo : (val > hi ? hi : val);
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto vv = RandEngine::Platform::SIMD::LoadU<R>(&v[i]);
+            auto lo = RandEngine::Platform::SIMD::LoadU<R>(&min[i]);
+            auto hi = RandEngine::Platform::SIMD::LoadU<R>(&max[i]);
+            RandEngine::Platform::SIMD::StoreU<R>(&result[i], RandEngine::Platform::SIMD::Min<R>(RandEngine::Platform::SIMD::Max<R>(vv, lo), hi));
+        }
+        for (; i < N; ++i)
+        {
+            R val = static_cast<R>(v[i]);
+            R lo = static_cast<R>(min[i]);
+            R hi = static_cast<R>(max[i]);
+            result[i] = val < lo ? lo : (val > hi ? hi : val);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            R val = static_cast<R>(v[i]);
+            R lo = static_cast<R>(min[i]);
+            R hi = static_cast<R>(max[i]);
+            result[i] = val < lo ? lo : (val > hi ? hi : val);
+        }
     }
     return result;
 }
@@ -377,12 +480,32 @@ constexpr auto Clamp(const Vec<T, N> &v, U min, V max)
 {
     using R = std::common_type_t<T, U, V>;
     Vec<R, N> result;
-    R lo = static_cast<R>(min);
-    R hi = static_cast<R>(max);
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (std::is_same_v<T, R> && Detail::VecUseSIMD<R, N>)
     {
-        R val = static_cast<R>(v[i]);
-        result[i] = val < lo ? lo : (val > hi ? hi : val);
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+        auto lo = RandEngine::Platform::SIMD::Set1<R>(static_cast<R>(min));
+        auto hi = RandEngine::Platform::SIMD::Set1<R>(static_cast<R>(max));
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto vv = RandEngine::Platform::SIMD::LoadU<R>(&v[i]);
+            RandEngine::Platform::SIMD::StoreU<R>(&result[i], RandEngine::Platform::SIMD::Min<R>(RandEngine::Platform::SIMD::Max<R>(vv, lo), hi));
+        }
+        for (; i < N; ++i)
+        {
+            R val = static_cast<R>(v[i]);
+            result[i] = val < static_cast<R>(min) ? static_cast<R>(min) : (val > static_cast<R>(max) ? static_cast<R>(max) : val);
+        }
+    }
+    else
+    {
+        R lo = static_cast<R>(min);
+        R hi = static_cast<R>(max);
+        for (size_t i = 0; i < N; ++i)
+        {
+            R val = static_cast<R>(v[i]);
+            result[i] = val < lo ? lo : (val > hi ? hi : val);
+        }
     }
     return result;
 }
@@ -406,10 +529,27 @@ constexpr auto ClampMagnitude(const Vec<T, N> &v, U max_len)
 template <Detail::NumericVec T, std::size_t N>
 constexpr T Sum(const Vec<T, N> &v)
 {
-    T s = 0;
-    for (size_t i = 0; i < N; ++i)
-        s += v[i];
-    return s;
+    if constexpr (Detail::VecUseSIMD<T, N>)
+    {
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+        auto s = RandEngine::Platform::SIMD::Zero<T>();
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            s = RandEngine::Platform::SIMD::Add<T>(s, RandEngine::Platform::SIMD::LoadU<T>(&v[i]));
+        }
+        T total = RandEngine::Platform::SIMD::HAdd<T>(s);
+        for (; i < N; ++i)
+            total += v[i];
+        return total;
+    }
+    else
+    {
+        T s = 0;
+        for (size_t i = 0; i < N; ++i)
+            s += v[i];
+        return s;
+    }
 }
 
 // 均值
@@ -423,38 +563,124 @@ constexpr auto Mean(const Vec<T, N> &v)
 template <Detail::NumericVec T, std::size_t N>
 constexpr T MaxComponent(const Vec<T, N> &v)
 {
-    T m = v[0];
-    for (size_t i = 1; i < N; ++i)
-        if (v[i] > m) m = v[i];
-    return m;
+    if constexpr (Detail::VecUseSIMD<T, N>)
+    {
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+        auto m = RandEngine::Platform::SIMD::LoadU<T>(&v[0]);
+        std::size_t i = W;
+        for (; i + W <= N; i += W)
+        {
+            m = RandEngine::Platform::SIMD::Max<T>(m, RandEngine::Platform::SIMD::LoadU<T>(&v[i]));
+        }
+        T total = RandEngine::Platform::SIMD::HMax<T>(m);
+        for (; i < N; ++i)
+            if (v[i] > total) total = v[i];
+        return total;
+    }
+    else
+    {
+        T m = v[0];
+        for (size_t i = 1; i < N; ++i)
+            if (v[i] > m) m = v[i];
+        return m;
+    }
 }
 
 template <Detail::NumericVec T, std::size_t N>
 constexpr T MinComponent(const Vec<T, N> &v)
 {
-    T m = v[0];
-    for (size_t i = 1; i < N; ++i)
-        if (v[i] < m) m = v[i];
-    return m;
+    if constexpr (Detail::VecUseSIMD<T, N>)
+    {
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+        auto m = RandEngine::Platform::SIMD::LoadU<T>(&v[0]);
+        std::size_t i = W;
+        for (; i + W <= N; i += W)
+        {
+            m = RandEngine::Platform::SIMD::Min<T>(m, RandEngine::Platform::SIMD::LoadU<T>(&v[i]));
+        }
+        T total = RandEngine::Platform::SIMD::HMin<T>(m);
+        for (; i < N; ++i)
+            if (v[i] < total) total = v[i];
+        return total;
+    }
+    else
+    {
+        T m = v[0];
+        for (size_t i = 1; i < N; ++i)
+            if (v[i] < m) m = v[i];
+        return m;
+    }
 }
 
 // 最大/最小分量索引
 template <Detail::NumericVec T, std::size_t N>
 constexpr std::size_t MaxIndex(const Vec<T, N> &v)
 {
-    std::size_t idx = 0;
-    for (size_t i = 1; i < N; ++i)
-        if (v[i] > v[idx]) idx = i;
-    return idx;
+    if constexpr (Detail::VecUseSIMD<T, N>)
+    {
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+        T best_val = v[0];
+        std::size_t best_idx = 0;
+        std::size_t i = 1;
+        for (; i + W <= N; i += W)
+        {
+            auto cur = RandEngine::Platform::SIMD::LoadU<T>(&v[i]);
+            T local = RandEngine::Platform::SIMD::HMax<T>(cur);
+            if (local > best_val)
+            {
+                best_val = local;
+                for (std::size_t k = 0; k < W; ++k)
+                {
+                    if (v[i + k] == local) { best_idx = i + k; break; }
+                }
+            }
+        }
+        for (; i < N; ++i)
+            if (v[i] > best_val) { best_val = v[i]; best_idx = i; }
+        return best_idx;
+    }
+    else
+    {
+        std::size_t idx = 0;
+        for (size_t i = 1; i < N; ++i)
+            if (v[i] > v[idx]) idx = i;
+        return idx;
+    }
 }
 
 template <Detail::NumericVec T, std::size_t N>
 constexpr std::size_t MinIndex(const Vec<T, N> &v)
 {
-    std::size_t idx = 0;
-    for (size_t i = 1; i < N; ++i)
-        if (v[i] < v[idx]) idx = i;
-    return idx;
+    if constexpr (Detail::VecUseSIMD<T, N>)
+    {
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<T>;
+        T best_val = v[0];
+        std::size_t best_idx = 0;
+        std::size_t i = 1;
+        for (; i + W <= N; i += W)
+        {
+            auto cur = RandEngine::Platform::SIMD::LoadU<T>(&v[i]);
+            T local = RandEngine::Platform::SIMD::HMin<T>(cur);
+            if (local < best_val)
+            {
+                best_val = local;
+                for (std::size_t k = 0; k < W; ++k)
+                {
+                    if (v[i + k] == local) { best_idx = i + k; break; }
+                }
+            }
+        }
+        for (; i < N; ++i)
+            if (v[i] < best_val) { best_val = v[i]; best_idx = i; }
+        return best_idx;
+    }
+    else
+    {
+        std::size_t idx = 0;
+        for (size_t i = 1; i < N; ++i)
+            if (v[i] < v[idx]) idx = i;
+        return idx;
+    }
 }
 
 // 归一化线性插值
@@ -488,12 +714,41 @@ constexpr auto InverseLerp(const Vec<T, N> &a, const Vec<U, N> &b, const Vec<V, 
 {
     using R = std::common_type_t<T, U, V>;
     Vec<R, N> result;
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (std::is_same_v<T, R> && std::is_same_v<U, R> && std::is_same_v<V, R> &&
+                  !std::is_integral_v<R> && Detail::VecUseSIMD<R, N>)
     {
-        R denom = static_cast<R>(b[i]) - static_cast<R>(a[i]);
-        result[i] = (std::abs(denom) < static_cast<R>(1e-9))
-                        ? static_cast<R>(0)
-                        : (static_cast<R>(v[i]) - static_cast<R>(a[i])) / denom;
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+        auto eps_v = RandEngine::Platform::SIMD::Set1<R>(static_cast<R>(1e-9));
+        auto zero_v = RandEngine::Platform::SIMD::Zero<R>();
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto av = RandEngine::Platform::SIMD::LoadU<R>(&a[i]);
+            auto bv = RandEngine::Platform::SIMD::LoadU<R>(&b[i]);
+            auto vv = RandEngine::Platform::SIMD::LoadU<R>(&v[i]);
+            auto denom = RandEngine::Platform::SIMD::Sub<R>(bv, av);
+            auto num = RandEngine::Platform::SIMD::Sub<R>(vv, av);
+            auto small = RandEngine::Platform::SIMD::CmpLT<R>(RandEngine::Platform::SIMD::Abs<R>(denom), eps_v);
+            auto q = RandEngine::Platform::SIMD::Div<R>(num, denom);
+            RandEngine::Platform::SIMD::StoreU<R>(&result[i], RandEngine::Platform::SIMD::Select<R>(small, zero_v, q));
+        }
+        for (; i < N; ++i)
+        {
+            R denom = static_cast<R>(b[i]) - static_cast<R>(a[i]);
+            result[i] = (std::abs(denom) < static_cast<R>(1e-9))
+                            ? static_cast<R>(0)
+                            : (static_cast<R>(v[i]) - static_cast<R>(a[i])) / denom;
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            R denom = static_cast<R>(b[i]) - static_cast<R>(a[i]);
+            result[i] = (std::abs(denom) < static_cast<R>(1e-9))
+                            ? static_cast<R>(0)
+                            : (static_cast<R>(v[i]) - static_cast<R>(a[i])) / denom;
+        }
     }
     return result;
 }
@@ -504,13 +759,44 @@ constexpr auto SmoothStep(const Vec<T, N> &edge0, const Vec<U, N> &edge1, V x)
 {
     using R = std::common_type_t<T, U, V>;
     Vec<R, N> result;
-    R xv = static_cast<R>(x);
-    for (size_t i = 0; i < N; ++i)
+    if constexpr (std::is_same_v<T, R> && std::is_same_v<U, R> &&
+                  !std::is_integral_v<R> && Detail::VecUseSIMD<R, N>)
     {
-        R e0 = static_cast<R>(edge0[i]);
-        R e1 = static_cast<R>(edge1[i]);
-        R t = Clamp((xv - e0) / (e1 - e0), static_cast<R>(0), static_cast<R>(1));
-        result[i] = t * t * (static_cast<R>(3) - static_cast<R>(2) * t);
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+        auto xv = RandEngine::Platform::SIMD::Set1<R>(static_cast<R>(x));
+        auto zero_v = RandEngine::Platform::SIMD::Zero<R>();
+        auto one_v = RandEngine::Platform::SIMD::Set1<R>(static_cast<R>(1));
+        auto two_v = RandEngine::Platform::SIMD::Set1<R>(static_cast<R>(2));
+        auto three_v = RandEngine::Platform::SIMD::Set1<R>(static_cast<R>(3));
+        std::size_t i = 0;
+        for (; i + W <= N; i += W)
+        {
+            auto e0 = RandEngine::Platform::SIMD::LoadU<R>(&edge0[i]);
+            auto e1 = RandEngine::Platform::SIMD::LoadU<R>(&edge1[i]);
+            auto t = RandEngine::Platform::SIMD::Div<R>(RandEngine::Platform::SIMD::Sub<R>(xv, e0), RandEngine::Platform::SIMD::Sub<R>(e1, e0));
+            t = RandEngine::Platform::SIMD::Min<R>(RandEngine::Platform::SIMD::Max<R>(t, zero_v), one_v);
+            auto tt = RandEngine::Platform::SIMD::Mul<R>(t, t);
+            auto factor = RandEngine::Platform::SIMD::Sub<R>(three_v, RandEngine::Platform::SIMD::Mul<R>(two_v, t));
+            RandEngine::Platform::SIMD::StoreU<R>(&result[i], RandEngine::Platform::SIMD::Mul<R>(tt, factor));
+        }
+        for (; i < N; ++i)
+        {
+            R e0 = static_cast<R>(edge0[i]);
+            R e1 = static_cast<R>(edge1[i]);
+            R t = Clamp((static_cast<R>(x) - e0) / (e1 - e0), static_cast<R>(0), static_cast<R>(1));
+            result[i] = t * t * (static_cast<R>(3) - static_cast<R>(2) * t);
+        }
+    }
+    else
+    {
+        R xv = static_cast<R>(x);
+        for (size_t i = 0; i < N; ++i)
+        {
+            R e0 = static_cast<R>(edge0[i]);
+            R e1 = static_cast<R>(edge1[i]);
+            R t = Clamp((xv - e0) / (e1 - e0), static_cast<R>(0), static_cast<R>(1));
+            result[i] = t * t * (static_cast<R>(3) - static_cast<R>(2) * t);
+        }
     }
     return result;
 }
@@ -521,9 +807,30 @@ constexpr auto OuterProduct(const Vec<T, N> &a, const Vec<U, N> &b)
 {
     using R = std::common_type_t<T, U>;
     Mat<R, N, N> result;
-    for (size_t r = 0; r < N; ++r)
-        for (size_t c = 0; c < N; ++c)
-            result[r, c] = static_cast<R>(a[r]) * static_cast<R>(b[c]);
+    if constexpr (std::is_same_v<T, R> && std::is_same_v<U, R> &&
+                  Detail::MatUseSIMD<R, N, N> &&
+                  (N % RandEngine::Platform::SIMD::SIMDWidth<R> == 0))
+    {
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<R>;
+        constexpr std::size_t Blocks = N / W;
+        for (std::size_t r = 0; r < N; ++r)
+        {
+            auto ar = RandEngine::Platform::SIMD::Set1<R>(a[r]);
+            for (std::size_t b_idx = 0; b_idx < Blocks; ++b_idx)
+            {
+                auto bv = RandEngine::Platform::SIMD::LoadU<R>(&b[b_idx * W]);
+                RandEngine::Platform::SIMD::StoreU<R>(&result[r * N + b_idx * W], RandEngine::Platform::SIMD::Mul<R>(ar, bv));
+            }
+            for (std::size_t c = Blocks * W; c < N; ++c)
+                result[r * N + c] = static_cast<R>(a[r]) * static_cast<R>(b[c]);
+        }
+    }
+    else
+    {
+        for (size_t r = 0; r < N; ++r)
+            for (size_t c = 0; c < N; ++c)
+                result[r, c] = static_cast<R>(a[r]) * static_cast<R>(b[c]);
+    }
     return result;
 }
 
@@ -621,9 +928,33 @@ constexpr auto Hadamard(const Args &...args)
 
     Mat<ResultScalar, R, C> result;
 
-    for (size_t i = 0; i < R * C; ++i)
+    if constexpr (Detail::MatUseSIMD<ResultScalar, R, C>)
     {
-        result[i] = (static_cast<ResultScalar>(args[i]) * ...);
+        constexpr std::size_t Total = R * C;
+        constexpr std::size_t W = RandEngine::Platform::SIMD::SIMDWidth<ResultScalar>;
+        auto tuple_mats = std::forward_as_tuple(args...);
+        std::size_t i = 0;
+        for (; i + W <= Total; i += W)
+        {
+            auto acc = [&]<std::size_t... Is>(std::index_sequence<Is...>)
+            {
+                auto v = RandEngine::Platform::SIMD::LoadU<ResultScalar>(&std::get<0>(tuple_mats)[i]);
+                (..., (v = RandEngine::Platform::SIMD::Mul<ResultScalar>(v, RandEngine::Platform::SIMD::LoadU<ResultScalar>(&std::get<Is + 1>(tuple_mats)[i]))));
+                return v;
+            }(std::make_index_sequence<sizeof...(Args) - 1>{});
+            RandEngine::Platform::SIMD::StoreU<ResultScalar>(&result[i], acc);
+        }
+        for (; i < Total; ++i)
+        {
+            result[i] = (static_cast<ResultScalar>(args[i]) * ...);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < R * C; ++i)
+        {
+            result[i] = (static_cast<ResultScalar>(args[i]) * ...);
+        }
     }
 
     return result;
