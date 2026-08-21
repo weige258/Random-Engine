@@ -3,21 +3,24 @@
 #include "string"
 #include "WindowType.hpp"
 #include "WindowDesc.hpp"
+#include "memory"
 
 namespace RandEngine::Platform::Window{
 
-class IWindow {
+class NativeWindow {
 public:
-    virtual ~IWindow() = default;
+    [[nodiscard]] static std::unique_ptr<NativeWindow> Create(const WindowDesc& desc = WindowDesc{});
+
+    virtual ~NativeWindow() = default;
 
     // 严禁拷贝与移动，多态对象统一使用 std::unique_ptr 管理
-    IWindow(const IWindow&) = delete;
-    IWindow& operator=(const IWindow&) = delete;
-    IWindow(IWindow&&) = delete;
-    IWindow& operator=(IWindow&&) = delete;
+    NativeWindow(const NativeWindow&) = delete;
+    NativeWindow& operator=(const NativeWindow&) = delete;
+    NativeWindow(NativeWindow&&) = delete;
+    NativeWindow& operator=(NativeWindow&&) = delete;
 
     protected:
-        IWindow() = default;
+        NativeWindow() = default;
 
     public:
         virtual void PollEvents() = 0;

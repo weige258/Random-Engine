@@ -1,4 +1,6 @@
 #include "SDLWindow.hpp"
+#include "SDLContext.hpp"
+#include "SDLWindow.hpp"
 #include <SDL3/SDL.h>
 #include <stdexcept>
 #include <string>
@@ -6,8 +8,7 @@
 
 namespace RandEngine::Platform::Window{
      
-    SDLWindow::SDLWindow(const WindowDesc& desc)
-        : desc(desc)
+    SDLWindow::SDLWindow(const WindowDesc& desc):m_context(SDLContext::GetInstance())
     {
         const Uint64 sdl_flags = MapFlags(desc.flags, desc.mode);
 
@@ -34,7 +35,8 @@ namespace RandEngine::Platform::Window{
     }
 
     SDLWindow::SDLWindow(SDLWindow&& other) noexcept
-        : window(std::exchange(other.window, nullptr)),
+        : m_context(std::move(other.m_context)),
+        window(std::exchange(other.window, nullptr)),
           desc(std::move(other.desc)),
           should_close(other.should_close),
           event_callback(std::move(other.event_callback))
@@ -49,7 +51,7 @@ namespace RandEngine::Platform::Window{
             {
                 SDL_DestroyWindow(window);
             }
-
+            m_context = std::move(other.m_context);
             window         = std::exchange(other.window, nullptr);
             desc           = std::move(other.desc);
             should_close   = other.should_close;

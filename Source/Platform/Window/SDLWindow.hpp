@@ -1,5 +1,7 @@
 #pragma once
-#include "IWindow.hpp"
+#include <memory>
+#include "SDLContext.hpp"
+#include "NativeWindow.hpp"
 #include "WindowType.hpp"
 #include "WindowDesc.hpp"
 #include "SDL3/SDL.h"
@@ -8,9 +10,10 @@
 
 namespace RandEngine::Platform::Window
 {
-    class SDLWindow final : public IWindow
+    class SDLWindow final : public NativeWindow
     {
     private:
+        std::shared_ptr<SDLContext> m_context;
         SDL_Window *window = nullptr;
         WindowDesc desc{};
         bool should_close = false;
