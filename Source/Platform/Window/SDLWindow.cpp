@@ -4,7 +4,7 @@
 #include <string>
 #include <utility>
 
-namespace RandEngine::Platform::Windows{
+namespace RandEngine::Platform::Window{
      
     SDLWindow::SDLWindow(const WindowDesc& desc)
         : desc(desc)

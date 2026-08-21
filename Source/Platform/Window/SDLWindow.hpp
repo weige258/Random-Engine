@@ -1,11 +1,12 @@
 #pragma once
 #include "IWindow.hpp"
 #include "WindowType.hpp"
+#include "WindowDesc.hpp"
 #include "SDL3/SDL.h"
 #include <string>
 #include <stdexcept>
 
-namespace RandEngine::Platform::Windows
+namespace RandEngine::Platform::Window
 {
     class SDLWindow final : public IWindow
     {

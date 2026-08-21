@@ -1,14 +1,14 @@
 #pragma once
 
 #include "Systems/ResourceSystems/ResourceSystem.hpp"
-#include "Systems/PlatformSystems/PlatformSystem.hpp"
+#include "Systems/DeviceSystems/DeviceSystem.hpp"
 
 namespace RandEngine::Core::Systems{
     
 
 struct System{
     
-    RandEngine::Core::Systems::PlatformSystems::PlatformSystem platform_system ;
+    RandEngine::Core::Systems::DeviceSystems::DeviceSystem device_system ;
     RandEngine::Core::Systems::ResourceSystems::ResourceSystem resource_system ;
     
     
@@ -16,7 +16,7 @@ struct System{
 
     void Run();
 
-    void Destory();
+    void Destroy();
 };
 
 }

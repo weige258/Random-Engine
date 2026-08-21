@@ -4,8 +4,8 @@ namespace RandEngine::Core::Systems
 {
     void System::Init()
     {
-        platform_system = PlatformSystems::PlatformSystem();
-        platform_system.Init();
+        device_system = DeviceSystems::DeviceSystem();
+        device_system.Init();
 
         resource_system = ResourceSystems::ResourceSystem();
         resource_system.Init();
@@ -13,14 +13,14 @@ namespace RandEngine::Core::Systems
 
     void System::Run()
     {
-        platform_system.Run();
+        device_system.Run();
         resource_system.Run();
         
     }
 
-    void System::Destory()
+    void System::Destroy()
     {
         resource_system.Destroy();    
-        platform_system.Destroy();    
+        device_system.Destroy();    
     }
 }

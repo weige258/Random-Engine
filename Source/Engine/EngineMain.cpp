@@ -20,7 +20,7 @@ namespace RandEngine::Engine
 
         void EngineMain::Destroy()
         {
-                this->system->Destory();
+                this->system->Destroy();
                 delete this->system;
         }
 

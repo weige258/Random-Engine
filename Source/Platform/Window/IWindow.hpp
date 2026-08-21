@@ -2,8 +2,9 @@
 #include <functional>
 #include "string"
 #include "WindowType.hpp"
+#include "WindowDesc.hpp"
 
-namespace RandEngine::Platform::Windows{
+namespace RandEngine::Platform::Window{
 
 class IWindow {
 public:
