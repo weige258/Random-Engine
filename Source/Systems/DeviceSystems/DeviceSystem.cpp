@@ -1,6 +1,6 @@
 #include "DeviceSystem.hpp"
 
-namespace RandEngine::Core::Systems::DeviceSystems
+namespace RandEngine::Systems::DeviceSystems
 {
      void DeviceSystem::Init()
      {

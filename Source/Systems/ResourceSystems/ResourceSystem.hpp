@@ -2,7 +2,7 @@
 #include "ObjectSystems/ObjectSystem.hpp"
 #include "BehaviorSystems/BehaviorSystem.hpp"
 
-namespace RandEngine::Core::Systems::ResourceSystems {
+namespace RandEngine::Systems::ResourceSystems {
     
     class ResourceSystem {
         

@@ -1,6 +1,6 @@
 #include "ResourceSystem.hpp"
 
-namespace RandEngine::Core::Systems::ResourceSystems {
+namespace RandEngine::Systems::ResourceSystems {
     
     
     void ResourceSystem::Init(){

@@ -1,53 +1,53 @@
 #pragma once
 #include "Containers/SparseSet.hpp"
 #include "Objects/BaseObject/BaseObject.hpp"
-#include "Memory/MasterPtr.hpp"
-#include "Memory/ObserverPtr.hpp"
+#include "Core/Memory/MasterPtr.hpp"
+#include "Core/Memory/ObserverPtr.hpp"
 #include "Behaviors/BaseBehavior/ISystemUpdateBehavior.hpp"
 #include "Config.hpp"
 #include <memory>
 #include <span>
 #include <ranges>
 
-namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
+namespace RandEngine::Systems::ResourceSystems::ObjectSystems
 {
     class ObjectSystem
     {
     private:
-        RandEngine::Core::Containers::SparseSet<Memory::MasterPtr<Objects::BaseObject>, RandEngine::Core::Config::ObjectIDType> objects;
+        RandEngine::Core::Containers::SparseSet<Core::Memory::MasterPtr<Core::Objects::BaseObject>, RandEngine::Core::Config::ObjectIDType> objects;
 
     public:
         // 获取对象
-        Objects::BaseObject &Get(const Config::ObjectIDType &id)
+        Core::Objects::BaseObject &Get(const Core::Config::ObjectIDType &id)
         {
             return *objects.Get(id);
         }
 
         template <typename U>
-        U &Get(const Config::ObjectIDType &id)
+        U &Get(const Core::Config::ObjectIDType &id)
         {
             return dynamic_cast<U &>(Get(id));
         }
 
-        Memory::ObserverPtr<Objects::BaseObject> GetPtr(const Config::ObjectIDType &id)
+        Core::Memory::ObserverPtr<Core::Objects::BaseObject> GetPtr(const Core::Config::ObjectIDType &id)
         {
             if (auto *master_ptr = objects.GetPtr(id))
             {
-                return Memory::ObserverPtr<Objects::BaseObject>(*master_ptr);
+                return Core::Memory::ObserverPtr<Core::Objects::BaseObject>(*master_ptr);
             }
 
             return {};
         }
 
         template <typename U>
-        Memory::ObserverPtr<U> GetPtr(const Config::ObjectIDType &id)
+        Core::Memory::ObserverPtr<U> GetPtr(const Core::Config::ObjectIDType &id)
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
             if (auto *master_ptr = objects.GetPtr(id))
             {
                 if (dynamic_cast<U *>(master_ptr->Get()) != nullptr)
                 {
-                    return Memory::ObserverPtr<U>(*master_ptr);
+                    return Core::Memory::ObserverPtr<U>(*master_ptr);
                 }
             }
             return {};
@@ -55,13 +55,13 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
 
         [[nodiscard]] auto GetAll() noexcept
         {
-            return objects.GetAll() | std::views::transform([](auto &master_ptr) -> Objects::BaseObject &
+            return objects.GetAll() | std::views::transform([](auto &master_ptr) -> Core::Objects::BaseObject &
                                                             { return *master_ptr; });
         }
 
-        std::vector<Memory::ObserverPtr<Objects::BaseObject>> GetAllPtr() const
+        std::vector<Core::Memory::ObserverPtr<Core::Objects::BaseObject>> GetAllPtr() const
         {
-            std::vector<Memory::ObserverPtr<Objects::BaseObject>> result;
+            std::vector<Core::Memory::ObserverPtr<Core::Objects::BaseObject>> result;
             auto raw_span = objects.GetAll();
             result.reserve(raw_span.size());
             for (const auto &ptr : raw_span)
@@ -84,11 +84,11 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
         }
 
         template <typename U>
-        std::vector<Memory::ObserverPtr<U>> GetAllPtr() const
+        std::vector<Core::Memory::ObserverPtr<U>> GetAllPtr() const
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
-            std::vector<Memory::ObserverPtr<U>> result;
+            std::vector<Core::Memory::ObserverPtr<U>> result;
             auto raw_span = objects.GetAll();
             result.reserve(raw_span.size());
 
@@ -107,7 +107,7 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             auto ids = objects.GetAllIDs();
             auto datas = objects.GetAll();
 
-            return std::views::iota(size_t(0), objects.Size()) | std::views::transform([ids, datas](size_t i) -> std::pair<Config::ObjectIDType, Objects::BaseObject &>
+            return std::views::iota(size_t(0), objects.Size()) | std::views::transform([ids, datas](size_t i) -> std::pair<Core::Config::ObjectIDType, Core::Objects::BaseObject &>
                                                                                        { return {ids[i], *datas[i]}; });
         }
 
@@ -121,13 +121,13 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
 
             return std::views::iota(size_t(0), objects.Size()) | std::views::filter([datas](size_t i)
                                                                                     { return datas[i] && dynamic_cast<U *>(datas[i].Get()) != nullptr; }) |
-                   std::views::transform([ids, datas](size_t i) -> std::pair<Config::ObjectIDType, U &>
+                   std::views::transform([ids, datas](size_t i) -> std::pair<Core::Config::ObjectIDType, U &>
                                          { return {ids[i], *dynamic_cast<U *>(datas[i].Get())}; });
         }
 
-        [[nodiscard]] std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<Objects::BaseObject>>> GetAllPtrWithID() const
+        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> GetAllPtrWithID() const
         {
-            std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<Objects::BaseObject>>> result;
+            std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> result;
             auto ids = objects.GetAllIDs();
             auto datas = objects.GetAll();
 
@@ -136,18 +136,18 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             {
                 if (datas[i])
                 {
-                    result.emplace_back(ids[i], Memory::ObserverPtr<Objects::BaseObject>(datas[i]));
+                    result.emplace_back(ids[i], Core::Memory::ObserverPtr<Core::Objects::BaseObject>(datas[i]));
                 }
             }
             return result;
         }
 
         template <typename U>
-        std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<U>>> GetAllPtrWithID() const
+        std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<U>>> GetAllPtrWithID() const
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
-            std::vector<std::pair<Config::ObjectIDType, Memory::ObserverPtr<U>>> result;
+            std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<U>>> result;
             auto ids = objects.GetAllIDs();
             auto datas = objects.GetAll();
 
@@ -156,7 +156,7 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             {
                 if (datas[i] && dynamic_cast<U *>(datas[i].Get()) != nullptr)
                 {
-                    result.emplace_back(ids[i], Memory::ObserverPtr<U>(datas[i]));
+                    result.emplace_back(ids[i], Core::Memory::ObserverPtr<U>(datas[i]));
                 }
             }
             return result;
@@ -164,15 +164,15 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
 
         // 添加对象
         template <typename U>
-        Config::ObjectIDType Add(U &&object)
+        Core::Config::ObjectIDType Add(U &&object)
         {
             using RawType = std::decay_t<U>;
-            static_assert(std::is_base_of_v<Objects::BaseObject, RawType>,
+            static_assert(std::is_base_of_v<Core::Objects::BaseObject, RawType>,
                           "U must derive from BaseObject!");
 
-            Memory::MasterPtr<Objects::BaseObject> ptr(new RawType(std::forward<U>(object)));
+            Core::Memory::MasterPtr<Core::Objects::BaseObject> ptr(new RawType(std::forward<U>(object)));
 
-            Config::ObjectIDType id = objects.AllocateID();
+            Core::Config::ObjectIDType id = objects.AllocateID();
             ptr->id = id;
             objects.Insert(id, std::move(ptr));
             return id;
@@ -180,9 +180,9 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
 
         template <typename... Args>
             requires(sizeof...(Args) > 1)
-        std::vector<Config::ObjectIDType> Add(Args &&...args)
+        std::vector<Core::Config::ObjectIDType> Add(Args &&...args)
         {
-            std::vector<Config::ObjectIDType> ids;
+            std::vector<Core::Config::ObjectIDType> ids;
             ids.reserve(sizeof...(args));
 
             (ids.push_back(Add(std::forward<Args>(args))), ...);
@@ -190,9 +190,9 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
             return ids;
         }
 
-        std::vector<Config::ObjectIDType> Add(std::vector<Memory::MasterPtr<Objects::BaseObject>> &&container)
+        std::vector<Core::Config::ObjectIDType> Add(std::vector<Core::Memory::MasterPtr<Core::Objects::BaseObject>> &&container)
         {
-            std::vector<Config::ObjectIDType> ids;
+            std::vector<Core::Config::ObjectIDType> ids;
             ids.reserve(container.size());
 
             for (auto &ptr : container)
@@ -200,7 +200,7 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
                 if (!ptr)
                     continue;
 
-                Config::ObjectIDType id = objects.AllocateID();
+                Core::Config::ObjectIDType id = objects.AllocateID();
                 ptr->id = id;
                 objects.Insert(id, std::move(ptr)); // 完美匹配 SparseSet::Insert(id, DataType&&)
                 ids.push_back(id);
@@ -210,7 +210,7 @@ namespace RandEngine::Core::Systems::ResourceSystems::ObjectSystems
         }
 
         // 删除对象
-        bool Delete(const Config::ObjectIDType id)
+        bool Delete(const Core::Config::ObjectIDType id)
         {
             return objects.Delete(id);
         }

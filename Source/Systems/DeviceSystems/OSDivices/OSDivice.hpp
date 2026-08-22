@@ -1,7 +1,7 @@
 #pragma once
 #include "Platform/OS/OSInfo.hpp"
 
-namespace RandEngine::Core::Systems::DeviceSystems::OSDevices
+namespace RandEngine::Systems::DeviceSystems::OSDevices
 {
     class OSDevice
     {

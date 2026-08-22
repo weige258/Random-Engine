@@ -1,6 +1,6 @@
 #include "WindowDevice.hpp"
 #include <stdexcept>
-#include "Window/SDLWindow.hpp"
+
 #include "SDL3/SDL.h"
 
 #if defined(_WIN32)
@@ -9,7 +9,7 @@
 // #include "Windows/CocoaWindow.hpp"
 #endif
 
-namespace RandEngine::Core::Systems::DeviceSystems::WindowDevices
+namespace RandEngine::Systems::DeviceSystems::WindowDevices
 {
 
     bool WindowDevice::AddWindow(const Platform::Window::WindowDesc &desc)
@@ -58,7 +58,7 @@ namespace RandEngine::Core::Systems::DeviceSystems::WindowDevices
 
     void WindowDevice::Init()
     {
-        windows.push_back(std::make_unique<Platform::Window::SDLWindow>(Platform::Window::SDLWindow(Platform::Window::WindowDesc())));
+        AddWindow();
     }
 
     void WindowDevice::Run()

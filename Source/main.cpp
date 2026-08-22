@@ -1,6 +1,4 @@
 #include "EngineMain.hpp"
-#include "Core/Objects/BaseObject/BaseObject.hpp"
-#include "Core/Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 #include "iostream"
 using namespace std;
 

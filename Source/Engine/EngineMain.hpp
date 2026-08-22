@@ -12,7 +12,7 @@ namespace RandEngine::Engine
         bool is_running = true;
 
     public:
-        static inline RandEngine::Core::Systems::System *system = nullptr;
+        static inline RandEngine::Systems::System *system = nullptr;
 
         void Init();
 

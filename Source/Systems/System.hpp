@@ -3,13 +3,13 @@
 #include "Systems/ResourceSystems/ResourceSystem.hpp"
 #include "Systems/DeviceSystems/DeviceSystem.hpp"
 
-namespace RandEngine::Core::Systems{
+namespace RandEngine::Systems{
     
 
 struct System{
     
-    RandEngine::Core::Systems::DeviceSystems::DeviceSystem device_system ;
-    RandEngine::Core::Systems::ResourceSystems::ResourceSystem resource_system ;
+    RandEngine::Systems::DeviceSystems::DeviceSystem device_system ;
+    RandEngine::Systems::ResourceSystems::ResourceSystem resource_system ;
     
     
     void Init();

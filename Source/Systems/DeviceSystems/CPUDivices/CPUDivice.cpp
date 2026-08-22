@@ -1,6 +1,6 @@
 #include "CPUDivice.hpp"
 
-namespace RandEngine::Core::Systems::DeviceSystems::CPUDivices{
+namespace RandEngine::Systems::DeviceSystems::CPUDivices{
     void CPUDevice::Init(){
         cpu_info = {};
         cpu_info.DetectAll();

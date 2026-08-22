@@ -1,7 +1,7 @@
 #pragma once
 #include "Platform/CPU/CPUInfo.hpp"
 
-namespace RandEngine::Core::Systems::DeviceSystems::CPUDivices{
+namespace RandEngine::Systems::DeviceSystems::CPUDivices{
     class  CPUDevice
     {
         private:

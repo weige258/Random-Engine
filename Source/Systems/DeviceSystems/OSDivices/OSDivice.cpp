@@ -1,6 +1,6 @@
 #include "OSDivice.hpp"
 
-namespace RandEngine::Core::Systems::DeviceSystems::OSDevices {
+namespace RandEngine::Systems::DeviceSystems::OSDevices {
 
     std::string_view OSDevice::GetTypeName() const noexcept {
         return Platform::OS::GetTypeName(info.type);

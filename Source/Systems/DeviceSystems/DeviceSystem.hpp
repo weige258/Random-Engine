@@ -3,7 +3,7 @@
 #include "Systems/DeviceSystems/WindowDevices/WindowDevice.hpp"
 #include "Systems/DeviceSystems/CPUDivices/CPUDivice.hpp"
 
-namespace RandEngine::Core::Systems::DeviceSystems
+namespace RandEngine::Systems::DeviceSystems
 {
        
     class DeviceSystem
