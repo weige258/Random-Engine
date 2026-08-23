@@ -1,0 +1,4 @@
+/Build/
+/Source/Libs/VulkanSDK/*
+/Source/Libs/Boost/*
+.VSCodeCounter
