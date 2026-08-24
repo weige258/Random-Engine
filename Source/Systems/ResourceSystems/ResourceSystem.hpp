@@ -1,10 +1,11 @@
 #pragma once
 #include "ObjectSystems/ObjectSystem.hpp"
 #include "BehaviorSystems/BehaviorSystem.hpp"
+#include "Systems/ISystem.hpp"
 
 namespace RandEngine::Systems::ResourceSystems {
     
-    class ResourceSystem {
+    class ResourceSystem:Systems::ISystem {
         
     public:    
         ObjectSystems::ObjectSystem object_system;
@@ -12,7 +13,7 @@ namespace RandEngine::Systems::ResourceSystems {
 
         void Init();
 
-        void Run();
+        void Run(System& system);
 
         void Destroy();
     }; 

@@ -11,10 +11,10 @@ namespace RandEngine::Systems
         resource_system.Init();
     }
 
-    void System::Run()
+    void System::Run(System& system)
     {
-        device_system.Run();
-        resource_system.Run();
+        device_system.Run(system);
+        resource_system.Run(system);
         
     }
 

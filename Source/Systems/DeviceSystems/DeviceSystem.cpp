@@ -4,26 +4,26 @@ namespace RandEngine::Systems::DeviceSystems
 {
      void DeviceSystem::Init()
      {
-          os_device = DeviceSystems::OSDevices::OSDevice();
-          os_device.Init();
+          os_system = DeviceSystems::OSSystems::OSSystem();
+          os_system.Init();
 
-          cpu_device = DeviceSystems::CPUDivices::CPUDevice();
-          cpu_device.Init();
+          cpu_system = DeviceSystems::CPUSystems::CPUSystem();
+          cpu_system.Init();
 
-          window_device = DeviceSystems::WindowDevices::WindowDevice();
-          window_device.Init();
+          window_system = DeviceSystems::WindowSystems::WindowSystem();
+          window_system.Init();
      }
 
-     void DeviceSystem::Run()
+     void DeviceSystem::Run(System& system)
      {
-          window_device.Run();
-          cpu_device.Run();
+          window_system.Run();
+          cpu_system.Run();
      }
 
      void DeviceSystem::Destroy()
      {
-          window_device.Destroy();
-          cpu_device.Destroy();
+          window_system.Destroy();
+          cpu_system.Destroy();
      }
 
 }

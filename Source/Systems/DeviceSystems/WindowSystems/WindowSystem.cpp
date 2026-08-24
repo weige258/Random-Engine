@@ -1,4 +1,4 @@
-#include "WindowDevice.hpp"
+#include "WindowSystem.hpp"
 #include <stdexcept>
 
 #include "SDL3/SDL.h"
@@ -9,10 +9,10 @@
 // #include "Windows/CocoaWindow.hpp"
 #endif
 
-namespace RandEngine::Systems::DeviceSystems::WindowDevices
+namespace RandEngine::Systems::DeviceSystems::WindowSystems
 {
 
-    bool WindowDevice::AddWindow(const Platform::Window::WindowDesc &desc)
+    bool WindowSystem::AddWindow(const Platform::Window::WindowDesc &desc)
     {
        
         std::unique_ptr<Platform::Window::NativeWindow> new_window = Platform::Window::NativeWindow::Create(desc);
@@ -26,7 +26,7 @@ namespace RandEngine::Systems::DeviceSystems::WindowDevices
         return true;
     }
 
-    bool WindowDevice::DeleteWindow(std::variant<Platform::Window::NativeWindow *, std::string, size_t> window)
+    bool WindowSystem::DeleteWindow(std::variant<Platform::Window::NativeWindow *, std::string, size_t> window)
     {
         return std::visit([this](auto &&arg) -> bool
                           {
@@ -56,12 +56,12 @@ namespace RandEngine::Systems::DeviceSystems::WindowDevices
             return false; }, window);
     }
 
-    void WindowDevice::Init()
+    void WindowSystem::Init()
     {
         AddWindow();
     }
 
-    void WindowDevice::Run()
+    void WindowSystem::Run()
     {
         for (size_t i = 0; i < windows.size(); i++)
         {
@@ -74,7 +74,7 @@ namespace RandEngine::Systems::DeviceSystems::WindowDevices
         }
     }
 
-    void WindowDevice::Destroy()
+    void WindowSystem::Destroy()
     {
         windows.clear();
     }

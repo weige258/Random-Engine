@@ -1,21 +1,22 @@
 #pragma once
-#include "Systems/DeviceSystems/OSDivices/OSDivice.hpp"
-#include "Systems/DeviceSystems/WindowDevices/WindowDevice.hpp"
-#include "Systems/DeviceSystems/CPUDivices/CPUDivice.hpp"
+#include "Systems/DeviceSystems/OSSystems/OSSystem.hpp"
+#include "Systems/DeviceSystems/WindowSystems/WindowSystem.hpp"
+#include "Systems/DeviceSystems/CPUSystems/CPUSystem.hpp"
+#include "Systems/ISystem.hpp"
 
 namespace RandEngine::Systems::DeviceSystems
 {
        
-    class DeviceSystem
+    class DeviceSystem:Systems::ISystem
     {
-        DeviceSystems::OSDevices::OSDevice os_device;
-        DeviceSystems::CPUDivices::CPUDevice cpu_device;
-        DeviceSystems::WindowDevices::WindowDevice window_device;
+        DeviceSystems::OSSystems::OSSystem os_system;
+        DeviceSystems::CPUSystems::CPUSystem cpu_system;
+        DeviceSystems::WindowSystems::WindowSystem window_system;
 
         public:
             void Init();
 
-            void Run();
+            void Run(System &system);
 
             void Destroy();
     } ;

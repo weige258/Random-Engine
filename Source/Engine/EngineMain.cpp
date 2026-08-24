@@ -14,7 +14,7 @@ namespace RandEngine::Engine
         {
                 while (is_running)
                 {
-                        this->system->Run();
+                        this->system->Run(*system);
                 }
         }
 

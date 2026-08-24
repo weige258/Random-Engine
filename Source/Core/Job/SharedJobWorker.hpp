@@ -5,6 +5,7 @@
 #include <thread>
 #include <unordered_set>
 #include <mutex>
+#include <type_traits>
 
 namespace RandEngine::Core::Job
 {
@@ -12,13 +13,22 @@ namespace RandEngine::Core::Job
     class SharedJobWorker
     {
     private:
-        boost::lockfree::queue<Task *, boost::lockfree::fixed_sized<false>> task_queue;
+        boost::lockfree::queue<Task, boost::lockfree::fixed_sized<false>> task_queue;
         std::vector<std::thread> threads;
         std::atomic<bool> is_running{false};
 
-        std::unordered_set<Task *> m_pending_removals;
+        std::unordered_set<Task> m_pending_removals;
         std::mutex m_removal_mutex;
         std::atomic<size_t> m_pending_removal_count{0};
+
+        // 通用有效性检查 (兼容指针与自定义 ObserverPtr)
+        static bool IsValid(const Task& task)
+        {
+            if constexpr (std::is_pointer_v<Task>)
+                return task != nullptr;
+            else
+                return static_cast<bool>(task);
+        }
 
     public:
         SharedJobWorker(size_t capacity = 2048) : task_queue(capacity) {}
@@ -29,33 +39,28 @@ namespace RandEngine::Core::Job
 
         void SetThreadCount(size_t thread_count)
         {
-            if (thread_count == this->threads.size())
+            if (thread_count == this->threads.size() || !this->threads.empty())
                 return;
-            if (!this->threads.empty())
-                return; // 启动后固定线程数，避免重复创建
 
             size_t target_count = (thread_count < 1) ? 1 : thread_count;
             this->threads.reserve(target_count);
 
             for (size_t i = 0; i < target_count; ++i)
             {
-                this->threads.emplace_back([this]()
-                                           { WorkerLoop(); });
+                this->threads.emplace_back([this]() { WorkerLoop(); });
             }
         }
 
-        // 添加task
-        bool PushTask(Task *task)
+        bool PushTask(const Task& task)
         {
-            if (!task)
+            if (!IsValid(task))
                 return false;
             return task_queue.push(task);
         }
 
-        // 单参数 Task 删除：标记墓碑（Lazy Deletion）
-        bool RemoveTask(Task *task)
+        bool RemoveTask(const Task& task)
         {
-            if (!task)
+            if (!IsValid(task))
                 return false;
 
             {
@@ -89,20 +94,19 @@ namespace RandEngine::Core::Job
         }
 
     protected:
-        virtual void ExecuteTask(Task *task) = 0;
+        virtual void ExecuteTask(Task task) = 0;
 
         void WorkerLoop()
         {
             while (is_running.load(std::memory_order_relaxed))
             {
-                Task *task = nullptr;
+                Task task{};
                 if (task_queue.pop(task))
                 {
-                    if (task)
+                    if (IsValid(task))
                     {
                         bool is_removed = false;
 
-                        // 1. 快通道判断：若无待删除任务，直接跳过锁检测（开销仅为一次 Relaxed Atomic Load）
                         if (m_pending_removal_count.load(std::memory_order_relaxed) > 0)
                         {
                             std::lock_guard<std::mutex> lock(m_removal_mutex);
@@ -115,13 +119,11 @@ namespace RandEngine::Core::Job
                             }
                         }
 
-                        // 2. 未被删除才执行并重新推回队列
                         if (!is_removed)
                         {
                             ExecuteTask(task);
-                            task_queue.push(task); // 重新推回共享无锁队列
+                            task_queue.push(task);
                         }
-                        // 若已被删除，则直接放任其丢弃，终止轮转
                     }
                 }
                 else

@@ -1,9 +1,9 @@
 #pragma once
 #include "Platform/OS/OSInfo.hpp"
 
-namespace RandEngine::Systems::DeviceSystems::OSDevices
+namespace RandEngine::Systems::DeviceSystems::OSSystems
 {
-    class OSDevice
+    class OSSystem
     {
     private:
         Platform::OS::OSInfo info{};

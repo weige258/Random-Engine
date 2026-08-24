@@ -5,9 +5,9 @@
 #include "variant"
 #include "Platform/Window/NativeWindow.hpp"
 
-namespace RandEngine::Systems::DeviceSystems::WindowDevices
+namespace RandEngine::Systems::DeviceSystems::WindowSystems
 {
-    class WindowDevice
+    class WindowSystem
     {
     private:
          std::vector<std::unique_ptr<Platform::Window::NativeWindow>> windows;

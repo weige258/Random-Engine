@@ -1,17 +1,20 @@
 #include "ResourceSystem.hpp"
-
-#include "Job/Test.hpp"
-
+#include "Time/Timer.hpp"
+#include "iostream"
 namespace RandEngine::Systems::ResourceSystems {
     
+    Core::Time::Timer timer;
     
     void ResourceSystem::Init(){
-       Core::Job::RunWorkerBenchmark();
        object_system.Init();
+
+       timer.Start();
     }
 
-    void ResourceSystem::Run(){
-       object_system.Run();
+    void ResourceSystem::Run(System& system){
+       object_system.Run(system);
+       behavior_system.Run(system);
+       std::cout << timer.GetDeltaTime() << std::endl;
     }
 
     void ResourceSystem::Destroy(){

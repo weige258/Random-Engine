@@ -4,6 +4,7 @@
 #include "Core/Memory/MasterPtr.hpp"
 #include "Core/Memory/ObserverPtr.hpp"
 #include "Behaviors/BaseBehavior/ISystemUpdateBehavior.hpp"
+#include "Systems/ISystem.hpp"
 #include "Config.hpp"
 #include <memory>
 #include <span>
@@ -11,7 +12,7 @@
 
 namespace RandEngine::Systems::ResourceSystems::ObjectSystems
 {
-    class ObjectSystem
+    class ObjectSystem:Systems::ISystem
     {
     private:
         RandEngine::Core::Containers::SparseSet<Core::Memory::MasterPtr<Core::Objects::BaseObject>, RandEngine::Core::Config::ObjectIDType> objects;
@@ -221,7 +222,7 @@ namespace RandEngine::Systems::ResourceSystems::ObjectSystems
         {
         }
 
-        void Run()
+        void Run(System& system)
         {
 
         }
