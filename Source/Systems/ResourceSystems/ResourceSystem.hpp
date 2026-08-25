@@ -1,20 +1,22 @@
 #pragma once
-#include "ObjectSystems/ObjectSystem.hpp"
-#include "BehaviorSystems/BehaviorSystem.hpp"
+#include "ObjectSystem.hpp"
+#include "BehaviorSystem.hpp"
 #include "Systems/ISystem.hpp"
 
-namespace RandEngine::Systems::ResourceSystems {
-    
-    class ResourceSystem:Systems::ISystem {
-        
-    public:    
-        ObjectSystems::ObjectSystem object_system;
-        BehaviorSystems::BehaviorSystem behavior_system;
+namespace RandEngine::Systems::ResourceSystems
+{
 
-        void Init();
+    class ResourceSystem : Systems::ISystem
+    {
 
-        void Run(System& system);
+    public:
+        ObjectSystem object_system;
+        BehaviorSystem behavior_system;
+
+        void Init(System &system);
+
+        void Run(System &system);
 
         void Destroy();
-    }; 
+    };
 }

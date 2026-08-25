@@ -7,7 +7,7 @@ namespace RandEngine::Engine
         void EngineMain::Init()
         {
                 system = new RandEngine::Systems::System();
-                this->system->Init();
+                this->system->Init(*system);
         }
 
         void EngineMain::Run()

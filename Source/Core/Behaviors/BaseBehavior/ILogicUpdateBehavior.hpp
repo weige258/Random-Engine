@@ -6,7 +6,7 @@ namespace RandEngine::Core::Behaviors
 {
     struct ILogicUpdateBehavior 
     {
-        virtual void LogicUpdate(const float& delta_time,Systems::System& system)=0;
+        virtual void LogicUpdate(float delta_time,RandEngine::Systems::System& system)=0;
 
         virtual ~ILogicUpdateBehavior() = default;
     }; 

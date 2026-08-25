@@ -3,13 +3,7 @@
 
 #include "SDL3/SDL.h"
 
-#if defined(_WIN32)
-// #include "Windows/Win32Window.hpp"
-#elif defined(__APPLE__)
-// #include "Windows/CocoaWindow.hpp"
-#endif
-
-namespace RandEngine::Systems::DeviceSystems::WindowSystems
+namespace RandEngine::Systems::DeviceSystems
 {
 
     bool WindowSystem::AddWindow(const Platform::Window::WindowDesc &desc)

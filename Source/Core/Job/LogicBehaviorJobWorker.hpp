@@ -12,16 +12,22 @@ namespace RandEngine::Core::Job
     struct LogicBehaviorJobWorker : public AffinityJobWorker<Memory::ObserverPtr<Behaviors::ILogicUpdateBehavior>>
     {
     private:
-        Systems::System *m_system = nullptr;
+       RandEngine::Systems::System *m_system = nullptr;
 
     public:
-        LogicBehaviorJobWorker(Systems::System &system)
+        LogicBehaviorJobWorker() = default;
+
+        LogicBehaviorJobWorker(RandEngine::Systems::System &system)
         {
             this->m_system = &system;
         };
         ~LogicBehaviorJobWorker() override = default;
 
-        void ExecuteTask(const Memory::ObserverPtr<Behaviors::ILogicUpdateBehavior> &task)
+        void SetSystem(RandEngine::Systems::System &system){
+            m_system = &system;
+        }
+
+        void ExecuteTask(Memory::ObserverPtr<Behaviors::ILogicUpdateBehavior> task) override
         {
             if (!task || !m_system)
                 return;

@@ -3,21 +3,18 @@
 #include "iostream"
 namespace RandEngine::Systems::ResourceSystems {
     
-    Core::Time::Timer timer;
-    
-    void ResourceSystem::Init(){
-       object_system.Init();
-
-       timer.Start();
+    void ResourceSystem::Init(System& system){
+       object_system.Init(system);
+       behavior_system.Init(system);
     }
 
     void ResourceSystem::Run(System& system){
        object_system.Run(system);
        behavior_system.Run(system);
-       std::cout << timer.GetDeltaTime() << std::endl;
     }
 
     void ResourceSystem::Destroy(){
         object_system.Destroy();
+        behavior_system.Destroy();
     }
 }

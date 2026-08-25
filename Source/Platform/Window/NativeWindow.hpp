@@ -1,7 +1,6 @@
 #pragma once
 #include <functional>
 #include "string"
-#include "WindowType.hpp"
 #include "WindowDesc.hpp"
 #include "memory"
 

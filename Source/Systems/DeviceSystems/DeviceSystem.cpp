@@ -2,15 +2,15 @@
 
 namespace RandEngine::Systems::DeviceSystems
 {
-     void DeviceSystem::Init()
+     void DeviceSystem::Init(System &system)
      {
-          os_system = DeviceSystems::OSSystems::OSSystem();
+          os_system = DeviceSystems::OSSystem();
           os_system.Init();
 
-          cpu_system = DeviceSystems::CPUSystems::CPUSystem();
+          cpu_system = DeviceSystems::CPUSystem();
           cpu_system.Init();
 
-          window_system = DeviceSystems::WindowSystems::WindowSystem();
+          window_system = DeviceSystems::WindowSystem();
           window_system.Init();
      }
 

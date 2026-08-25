@@ -10,7 +10,7 @@
 #include <span>
 #include <ranges>
 
-namespace RandEngine::Systems::ResourceSystems::ObjectSystems
+namespace RandEngine::Systems::ResourceSystems
 {
     class ObjectSystem:Systems::ISystem
     {
@@ -218,7 +218,7 @@ namespace RandEngine::Systems::ResourceSystems::ObjectSystems
 
     public:
         // 系统执行
-        void Init()
+        void Init(System& system)
         {
         }
 

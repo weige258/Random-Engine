@@ -13,8 +13,8 @@ namespace RandEngine::Core::Job
     class SharedJobWorker
     {
     private:
-        boost::lockfree::queue<Task, boost::lockfree::fixed_sized<false>> task_queue;
-        std::vector<std::thread> threads;
+        boost::lockfree::queue<Task, boost::lockfree::fixed_sized<false>> m_task_queue;
+        std::vector<std::thread> m_threads;
         std::atomic<bool> is_running{false};
 
         std::unordered_set<Task> m_pending_removals;
@@ -31,7 +31,7 @@ namespace RandEngine::Core::Job
         }
 
     public:
-        SharedJobWorker(size_t capacity = 2048) : task_queue(capacity) {}
+        SharedJobWorker(size_t capacity = 2048) : m_task_queue(capacity) {}
         virtual ~SharedJobWorker() { Stop(); }
 
         SharedJobWorker(const SharedJobWorker &) = delete;
@@ -39,15 +39,15 @@ namespace RandEngine::Core::Job
 
         void SetThreadCount(size_t thread_count)
         {
-            if (thread_count == this->threads.size() || !this->threads.empty())
+            if (thread_count == this->m_threads.size() || !this->m_threads.empty())
                 return;
 
             size_t target_count = (thread_count < 1) ? 1 : thread_count;
-            this->threads.reserve(target_count);
+            this->m_threads.reserve(target_count);
 
             for (size_t i = 0; i < target_count; ++i)
             {
-                this->threads.emplace_back([this]() { WorkerLoop(); });
+                this->m_threads.emplace_back([this]() { WorkerLoop(); });
             }
         }
 
@@ -55,7 +55,7 @@ namespace RandEngine::Core::Job
         {
             if (!IsValid(task))
                 return false;
-            return task_queue.push(task);
+            return m_task_queue.push(task);
         }
 
         bool RemoveTask(const Task& task)
@@ -85,12 +85,12 @@ namespace RandEngine::Core::Job
             if (!is_running.exchange(false, std::memory_order_acq_rel))
                 return;
 
-            for (auto &w : threads)
+            for (auto &w : m_threads)
             {
                 if (w.joinable())
                     w.join();
             }
-            threads.clear();
+            m_threads.clear();
         }
 
     protected:
@@ -101,7 +101,7 @@ namespace RandEngine::Core::Job
             while (is_running.load(std::memory_order_relaxed))
             {
                 Task task{};
-                if (task_queue.pop(task))
+                if (m_task_queue.pop(task))
                 {
                     if (IsValid(task))
                     {
@@ -122,7 +122,7 @@ namespace RandEngine::Core::Job
                         if (!is_removed)
                         {
                             ExecuteTask(task);
-                            task_queue.push(task);
+                            m_task_queue.push(task);
                         }
                     }
                 }

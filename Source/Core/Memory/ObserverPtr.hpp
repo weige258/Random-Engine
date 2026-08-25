@@ -3,116 +3,111 @@
 #include "PtrControlBlock.hpp"
 #include <atomic>
 #include <concepts>
+#include <functional>
 
 namespace RandEngine::Core::Memory
 {
     template <typename T>
-    struct MasterPtr;
+    struct MasterPtr; //[cite: 41]
 
     template <typename T>
     class ObserverPtr
     {
     private:
-        PtrControlBlock<T> *block = nullptr;
+        T *ptr = nullptr;
+        PtrControlBlock *block = nullptr; //[cite: 41, 42]
+
+        template <typename U>
+        friend class ObserverPtr;
 
     public:
-        // RAII 保护句柄：极轻量，不进行 shared_ptr 级别的强引用升级
-        class ScopedRef
+        class ScopedRef //[cite: 41]
         {
         private:
-            T *ptr = nullptr;
-            PtrControlBlock<T> *block = nullptr;
+            T *ptr = nullptr;                 //[cite: 41]
+            PtrControlBlock *block = nullptr; //[cite: 41, 42]
 
             friend class ObserverPtr;
-            ScopedRef(T *p, PtrControlBlock<T> *b) noexcept : ptr(p), block(b) {}
+            ScopedRef(T *p, PtrControlBlock *b) noexcept : ptr(p), block(b) {} //[cite: 41]
 
         public:
-            ScopedRef() noexcept = default;
-            ~ScopedRef()
+            ScopedRef() noexcept = default; //[cite: 41]
+            ~ScopedRef()                    //[cite: 41]
             {
-                if (block)
+                if (block) //[cite: 41]
                 {
-                    // 释放读取权：仅需 release 内存顺序
-                    block->active_readers.fetch_sub(1, std::memory_order_release);
+                    block->active_readers.fetch_sub(1, std::memory_order_release); //[cite: 41]
                 }
             }
 
-            ScopedRef(const ScopedRef &) = delete;
-            ScopedRef &operator=(const ScopedRef &) = delete;
+            ScopedRef(const ScopedRef &) = delete;            //[cite: 41]
+            ScopedRef &operator=(const ScopedRef &) = delete; //[cite: 41]
 
-            ScopedRef(ScopedRef &&other) noexcept : ptr(other.ptr), block(other.block)
+            ScopedRef(ScopedRef &&other) noexcept : ptr(other.ptr), block(other.block) //[cite: 41]
             {
-                other.ptr = nullptr;
-                other.block = nullptr;
+                other.ptr = nullptr;   //[cite: 41]
+                other.block = nullptr; //[cite: 41]
             }
 
-            ScopedRef &operator=(ScopedRef &&other) noexcept
+            ScopedRef &operator=(ScopedRef &&other) noexcept //[cite: 41]
             {
-                if (this != &other)
+                if (this != &other) //[cite: 41]
                 {
-                    if (block)
-                        block->active_readers.fetch_sub(1, std::memory_order_release);
-                    ptr = other.ptr;
-                    block = other.block;
-                    other.ptr = nullptr;
-                    other.block = nullptr;
+                    if (block)                                                         //[cite: 41]
+                        block->active_readers.fetch_sub(1, std::memory_order_release); //[cite: 41]
+                    ptr = other.ptr;                                                   //[cite: 41]
+                    block = other.block;                                               //[cite: 41]
+                    other.ptr = nullptr;                                               //[cite: 41]
+                    other.block = nullptr;                                             //[cite: 41]
                 }
-                return *this;
+                return *this; //[cite: 41]
             }
 
-            [[nodiscard]] T *Get() const noexcept
-            {
-                return ptr;
-            }
-
-            [[nodiscard]] T *operator->() const noexcept
-            {
-                return ptr;
-            }
-
-            [[nodiscard]] T &operator*() const noexcept
-            {
-                return *ptr;
-            }
-            explicit operator bool() const noexcept
-            {
-                return ptr != nullptr;
-            }
+            [[nodiscard]] T *Get() const noexcept { return ptr; }              //[cite: 41]
+            [[nodiscard]] T *operator->() const noexcept { return ptr; }       //[cite: 41]
+            [[nodiscard]] T &operator*() const noexcept { return *ptr; }       //[cite: 41]
+            explicit operator bool() const noexcept { return ptr != nullptr; } //[cite: 41]
         };
 
-        ObserverPtr() noexcept = default;
+        ObserverPtr() noexcept = default; //[cite: 41]
 
-        explicit ObserverPtr(const MasterPtr<T> &master) noexcept : block(master.block)
+        explicit ObserverPtr(const MasterPtr<T> &master) noexcept
+            : ptr(master.Get()), block(master.block)
         {
             if (block)
-            {
                 block->observer_count.fetch_add(1, std::memory_order_relaxed);
-            }
         }
 
         template <typename U>
             requires std::convertible_to<U *, T *>
-        ObserverPtr(const ObserverPtr<U> &other) noexcept : block(other.block)
+        explicit ObserverPtr(const MasterPtr<U> &master) noexcept
+            : ptr(master.Get()), block(master.block)
         {
             if (block)
-            {
                 block->observer_count.fetch_add(1, std::memory_order_relaxed);
-            }
         }
 
-        ~ObserverPtr()
+        template <typename U>
+            requires std::convertible_to<U *, T *>
+        ObserverPtr(const ObserverPtr<U> &other) noexcept
+            : ptr(other.ptr), block(other.block)
         {
-            if (block && block->observer_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            if (block)
+                block->observer_count.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        ~ObserverPtr() //[cite: 41]
+        {
+            if (block && block->observer_count.fetch_sub(1, std::memory_order_acq_rel) == 1) //[cite: 41]
             {
-                // 若此时 target_ptr 已空且无观察者，销毁控制块
-                if (block->target_ptr.load(std::memory_order_acquire) == nullptr)
+                if (block->target_ptr.load(std::memory_order_acquire) == nullptr) //[cite: 41]
                 {
-                    delete block;
+                    delete block; //[cite: 41]
                 }
             }
         }
 
-        ObserverPtr(const ObserverPtr &other) noexcept : block(other.block)
+        ObserverPtr(const ObserverPtr &other) noexcept : ptr(other.ptr), block(other.block)
         {
             if (block)
                 block->observer_count.fetch_add(1, std::memory_order_relaxed);
@@ -123,15 +118,17 @@ namespace RandEngine::Core::Memory
             if (this != &other)
             {
                 this->~ObserverPtr();
-                block = other.block;
+                ptr = other.ptr;     // <-- 补齐 ptr 拷贝[cite: 48]
+                block = other.block; //[cite: 48]
                 if (block)
-                    block->observer_count.fetch_add(1, std::memory_order_relaxed);
+                    block->observer_count.fetch_add(1, std::memory_order_relaxed); //[cite: 48]
             }
             return *this;
         }
 
-        ObserverPtr(ObserverPtr &&other) noexcept : block(other.block)
+        ObserverPtr(ObserverPtr &&other) noexcept : ptr(other.ptr), block(other.block)
         {
+            other.ptr = nullptr; // 必须清空源 ptr
             other.block = nullptr;
         }
 
@@ -140,58 +137,103 @@ namespace RandEngine::Core::Memory
             if (this != &other)
             {
                 this->~ObserverPtr();
-                block = other.block;
-                other.block = nullptr;
+                ptr = other.ptr;     // <-- 补齐 ptr 移动[cite: 48]
+                block = other.block; //[cite: 48]
+                other.ptr = nullptr;
+                other.block = nullptr; //[cite: 48]
             }
             return *this;
         }
 
-        // 核心高性能 Lock 函数：相比 weak_ptr::lock() 避免了昂贵的强引用控制块构造
         [[nodiscard]] ScopedRef Lock() const noexcept
         {
             if (!block)
                 return {};
 
-            // 1. 使用 relaxed 预占读取位置，极小化指令开销
             block->active_readers.fetch_add(1, std::memory_order_relaxed);
 
-            // 2. 使用 acquire 同步 target_ptr 状态
-            T *p = block->target_ptr.load(std::memory_order_acquire);
-            if (!p)
+            void *p_raw = block->target_ptr.load(std::memory_order_acquire);
+            if (!p_raw)
             {
                 block->active_readers.fetch_sub(1, std::memory_order_relaxed);
                 return {};
             }
 
-            return ScopedRef{p, block};
-        }
-        
-        [[nodiscard]] bool Expired() const noexcept
-        {
-            return !block || block->target_ptr.load(std::memory_order_relaxed) == nullptr;
+            return ScopedRef{ptr, block};
         }
 
-        //访问
+        [[nodiscard]] bool Expired() const noexcept //[cite: 41]
+        {
+            return !block || block->target_ptr.load(std::memory_order_relaxed) == nullptr; //[cite: 41, 42]
+        }
+
         [[nodiscard]] T *Get() const noexcept
         {
-            return block ? block->target_ptr.load(std::memory_order_relaxed) : nullptr; //[cite: 2, 3]
+            return (block && block->target_ptr.load(std::memory_order_relaxed)) ? ptr : nullptr;
         }
 
-        [[nodiscard]] T *operator->() const noexcept
-        {
-            return Get();
-        }
+        [[nodiscard]] T *operator->() const noexcept { return Get(); }       //[cite: 41]
+        [[nodiscard]] T &operator*() const noexcept { return *Get(); }       //[cite: 41]
+        explicit operator bool() const noexcept { return Get() != nullptr; } //[cite: 41]
 
-        [[nodiscard]] T &operator*() const noexcept
-        {
-            return *Get();
-        }
+        // 跨模板类型比较运算符支持[cite: 41]
+        template <typename U>
+        bool operator==(const ObserverPtr<U> &other) const noexcept { return block == other.block; } //[cite: 41]
+        template <typename U>
+        bool operator!=(const ObserverPtr<U> &other) const noexcept { return block != other.block; } //[cite: 41]
 
-        explicit operator bool() const noexcept
-        {
-            return Get() != nullptr;
-        }
+        bool operator==(std::nullptr_t) const noexcept { return Get() == nullptr; } //[cite: 41]
+        bool operator!=(std::nullptr_t) const noexcept { return Get() != nullptr; } //[cite: 41]
 
-        friend struct MasterPtr<T>;
+        friend struct MasterPtr<T>; //[cite: 41]
+
+        template <typename Target, typename Source>
+        friend ObserverPtr<Target> dynamic_observer_cast(const ObserverPtr<Source> &src) noexcept;
+        template <typename Target, typename Source>
+        friend ObserverPtr<Target> static_observer_cast(const ObserverPtr<Source> &src) noexcept;
     };
+
+    // 动态向下转型工具：类似于 std::dynamic_pointer_cast[cite: 41]
+    template <typename Target, typename Source>
+    ObserverPtr<Target> dynamic_observer_cast(const ObserverPtr<Source> &src) noexcept
+    {
+        Target *target_ptr = dynamic_cast<Target *>(src.Get());
+        if (!src || !target_ptr)
+            return {};
+
+        ObserverPtr<Target> dst;
+        dst.ptr = target_ptr; // 保存计算偏移后的正确接口指针
+        dst.block = src.block;
+        if (dst.block)
+        {
+            dst.block->observer_count.fetch_add(1, std::memory_order_relaxed);
+        }
+        return dst;
+    }
+
+    // 静态转型工具：类似于 std::static_pointer_cast[cite: 41]
+    template <typename Target, typename Source>
+    ObserverPtr<Target> static_observer_cast(const ObserverPtr<Source> &src) noexcept
+    {
+        if (!src)
+            return {};
+
+        ObserverPtr<Target> dst;
+        dst.block = src.block;
+        if (dst.block)
+        {
+            dst.block->observer_count.fetch_add(1, std::memory_order_relaxed);
+        }
+        return dst;
+    }
 }
+
+// 哈希支持[cite: 41]
+template <typename T>
+struct std::hash<RandEngine::Core::Memory::ObserverPtr<T>>
+{
+    size_t operator()(const RandEngine::Core::Memory::ObserverPtr<T> &p) const noexcept
+    {
+        return std::hash<T *>{}(p.Get());
+    }
+};
