@@ -1,14 +1,9 @@
 #include "BaseObject.hpp"
 
-namespace RandEngine::Core::Objects{
+namespace RandEngine::Core::Objects
+{
+    BaseObject::BaseObject()=default;
+    BaseObject::~BaseObject()=default;
+
     
-    BaseObject::BaseObject()
-    {
-
-    }
-
-    BaseObject::~BaseObject()
-    {
-
-    }
 }

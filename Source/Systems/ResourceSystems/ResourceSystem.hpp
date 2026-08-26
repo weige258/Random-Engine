@@ -18,5 +18,18 @@ namespace RandEngine::Systems::ResourceSystems
         void Run(System &system);
 
         void Destroy();
+
+        template <typename U>
+        Core::Config::ObjectIDType Add(U &&object)
+        {
+
+            Core::Config::ObjectIDType id = object_system.Add(std::forward<U>(object));
+
+            auto &obj = object_system.Get(id);
+            obj.static_behaviors.UploadBehaviors(id, behavior_system);
+
+            return id;
+        }
+
     };
 }

@@ -171,7 +171,7 @@ namespace RandEngine::Systems::ResourceSystems
             static_assert(std::is_base_of_v<Core::Objects::BaseObject, RawType>,
                           "U must derive from BaseObject!");
 
-            Core::Memory::MasterPtr<Core::Objects::BaseObject> ptr(new RawType(std::forward<U>(object)));
+            Core::Memory::MasterPtr<Core::Objects::BaseObject> ptr(new RawType(std::move(object)));
 
             Core::Config::ObjectIDType id = objects.AllocateID();
             ptr->id = id;

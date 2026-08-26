@@ -1,9 +1,12 @@
 #include "EngineMain.hpp"
 #include "Systems/System.hpp"
+#include "Core/Time/Timer.hpp"
+#include <iostream>
+
 
 namespace RandEngine::Engine
 {
-
+        
         void EngineMain::Init()
         {
                 system = new RandEngine::Systems::System();
