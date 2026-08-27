@@ -145,6 +145,20 @@ namespace RandEngine::Core::Memory
             return *this;
         }
 
+        ObserverPtr &operator=(std::nullptr_t) noexcept
+        {
+            if (block && block->observer_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            {
+                if (block->target_ptr.load(std::memory_order_acquire) == nullptr)
+                {
+                    delete block;
+                }
+            }
+            ptr = nullptr;
+            block = nullptr;
+            return *this;
+        }
+
         [[nodiscard]] ScopedRef Lock() const noexcept
         {
             if (!block)

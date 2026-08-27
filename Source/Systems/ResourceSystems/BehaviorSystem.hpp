@@ -33,68 +33,36 @@ namespace RandEngine::Systems::ResourceSystems
         }
 
         template <typename T>
-        void DeleteBehavior(Core::Memory::ObserverPtr<T> behavior)
-        {
-            if (!behavior)
-                return;
-
-            behaviors_should_delete.push_back(behavior);
-
-            std::erase_if(all_behaviors, [&](const auto &master)
-                          { return master.Get() == behavior.Get(); });
-        }
-
-        template <typename T>
         std::pair<std::vector<Core::Memory::ObserverPtr<T>>,
                   std::vector<Core::Memory::ObserverPtr<T>>>
-        RemoveBehaviorToRuntimeSystem()
+        FetchBehaviorChangesToRuntimeSystem() const
         {
             std::vector<Core::Memory::ObserverPtr<T>> matched_add;
             std::vector<Core::Memory::ObserverPtr<T>> matched_delete;
 
-            if (behaviors_should_add.empty() && behaviors_should_delete.empty())
+            for (const auto &item : behaviors_should_add)
             {
-                return {std::move(matched_add), std::move(matched_delete)};
+                if (auto casted = Core::Memory::dynamic_observer_cast<T>(item))
+                {
+                    matched_add.push_back(casted);
+                }
             }
 
-            // 抽取匹配接口的双指针高效提取 Lambda
-            auto extract_matching = [&](auto &src_vec, auto &out_vec)
+            for (const auto &item : behaviors_should_delete)
             {
-                if (src_vec.empty())
-                    return;
-
-                size_t write_idx = 0;
-                const size_t size = src_vec.size();
-
-                for (size_t read_idx = 0; read_idx < size; ++read_idx)
+                if (auto casted = Core::Memory::dynamic_observer_cast<T>(item))
                 {
-                    auto &item = src_vec[read_idx];
-                    if (item)
-                    {
-                        // 使用标准的 dynamic_observer_cast 进行安全的 RTTI 检查与接口转型
-                        auto casted = Core::Memory::dynamic_observer_cast<T>(item);
-                        if (casted)
-                        {
-                            out_vec.push_back(std::move(casted));
-                        }
-                        else
-                        {
-                            // 未匹配上 T 接口的 Behavior 保留留在原队列中
-                            if (write_idx != read_idx)
-                            {
-                                src_vec[write_idx] = std::move(item);
-                            }
-                            ++write_idx;
-                        }
-                    }
+                    matched_delete.push_back(casted);
                 }
-                src_vec.resize(write_idx);
-            };
-
-            extract_matching(behaviors_should_add, matched_add);
-            extract_matching(behaviors_should_delete, matched_delete);
+            }
 
             return {std::move(matched_add), std::move(matched_delete)};
+        }
+
+        void FlushPendingQueue()
+        {
+            behaviors_should_add.clear();
+            behaviors_should_delete.clear();
         }
 
         void Init(System &system) {};

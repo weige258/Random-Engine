@@ -3,7 +3,10 @@
 #include "Core/Job/LogicBehaviorJobWorker.hpp"
 #include "Systems/ISystem.hpp"
 
-namespace RandEngine::Systems { struct System; }
+namespace RandEngine::Systems
+{
+    struct System;
+}
 
 namespace RandEngine::Systems::RuntimeSystems
 {
@@ -12,13 +15,13 @@ namespace RandEngine::Systems::RuntimeSystems
     {
     private:
         Core::Job::LogicBehaviorJobWorker logic_behavior_job_worker;
-        size_t update_rate=60;
-        int count=0;
-    
-        void UploadLogicBehaviorsFromBehaviorSystem(System& system);
 
     public:
-        void Init(System& system);
+        void ApplyBehaviorChanges(
+            const std::vector<Core::Memory::ObserverPtr<Core::Behaviors::ILogicUpdateBehavior>> &added,
+            const std::vector<Core::Memory::ObserverPtr<Core::Behaviors::ILogicUpdateBehavior>> &deleted);
+
+        void Init(System &system);
 
         void Run(System &system);
 

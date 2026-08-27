@@ -1,6 +1,7 @@
 #pragma once
 #include "ObjectSystem.hpp"
 #include "BehaviorSystem.hpp"
+#include "Behaviors/BaseBehavior/BindBaseBehavoir.hpp"
 #include "Systems/ISystem.hpp"
 
 namespace RandEngine::Systems::ResourceSystems
@@ -25,11 +26,7 @@ namespace RandEngine::Systems::ResourceSystems
 
             Core::Config::ObjectIDType id = object_system.Add(std::forward<U>(object));
 
-            auto &obj = object_system.Get(id);
-            obj.static_behaviors.UploadBehaviors(id, behavior_system);
-
             return id;
         }
-
     };
 }
