@@ -22,7 +22,7 @@ int main()
 
     RandEngine::Engine::EngineMain app;
     app.Init();
-    for(auto i = 0; i < 10; i++){
+    for(auto i = 0; i < 1000; i++){
     app.system->resource_system.Add(Enity());}
     app.Run();
     app.Destroy();
