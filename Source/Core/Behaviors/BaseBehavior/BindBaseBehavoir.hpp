@@ -4,7 +4,7 @@
 
 namespace RandEngine::Core::Behaviors {
     
-    struct BindBaseBehavior:BaseBehavior
+    struct BindBaseBehavior: BaseBehavior
     {
         static constexpr Config::ObjectIDType null_index = static_cast<Config::ObjectIDType>(-1);
         Config::ObjectIDType bind_id=null_index;
