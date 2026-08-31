@@ -23,6 +23,8 @@ namespace RandEngine::Core::Memory
         friend class ObserverPtr;
 
     public:
+        MasterPtr(std::nullptr_t) noexcept : ptr(nullptr), block(nullptr) {}
+
         explicit MasterPtr(T *resource = nullptr) : ptr(resource) //[cite: 40]
         {
             if (ptr)

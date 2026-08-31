@@ -16,13 +16,14 @@ namespace RandEngine::Core::Job
         boost::lockfree::queue<Task, boost::lockfree::fixed_sized<false>> m_task_queue;
         std::vector<std::thread> m_threads;
         std::atomic<bool> is_running{false};
+        std::atomic<bool> m_is_paused{false};
 
         std::unordered_set<Task> m_pending_removals;
         std::mutex m_removal_mutex;
         std::atomic<size_t> m_pending_removal_count{0};
 
         // 通用有效性检查 (兼容指针与自定义 ObserverPtr)
-        static bool IsValid(const Task& task)
+        static bool IsValid(const Task &task)
         {
             if constexpr (std::is_pointer_v<Task>)
                 return task != nullptr;
@@ -47,18 +48,19 @@ namespace RandEngine::Core::Job
 
             for (size_t i = 0; i < target_count; ++i)
             {
-                this->m_threads.emplace_back([this]() { WorkerLoop(); });
+                this->m_threads.emplace_back([this]()
+                                             { WorkerLoop(); });
             }
         }
 
-        bool PushTask(const Task& task)
+        bool PushTask(const Task &task)
         {
             if (!IsValid(task))
                 return false;
             return m_task_queue.push(task);
         }
 
-        bool RemoveTask(const Task& task)
+        bool RemoveTask(const Task &task)
         {
             if (!IsValid(task))
                 return false;
@@ -93,6 +95,10 @@ namespace RandEngine::Core::Job
             m_threads.clear();
         }
 
+        void Pause() { m_is_paused.store(true, std::memory_order_release); }
+        void Resume() { m_is_paused.store(false, std::memory_order_release); }
+        bool IsPaused() const { return m_is_paused.load(std::memory_order_relaxed); }
+
     protected:
         virtual void ExecuteTask(Task task) = 0;
 
@@ -100,6 +106,13 @@ namespace RandEngine::Core::Job
         {
             while (is_running.load(std::memory_order_relaxed))
             {
+                
+                if (m_is_paused.load(std::memory_order_relaxed))
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+
                 Task task{};
                 if (m_task_queue.pop(task))
                 {

@@ -24,6 +24,7 @@ namespace RandEngine::Core::Job
 
         std::vector<std::unique_ptr<WorkerThreadData>> m_workers;
         std::atomic<bool> m_is_running{false};
+        std::atomic<bool> m_is_paused{false};
         std::atomic<size_t> m_rr_index{0};
         std::atomic<bool> m_enable_auto_balance{true};
 
@@ -174,6 +175,10 @@ namespace RandEngine::Core::Job
             m_workers.clear();
         }
 
+        void Pause() { m_is_paused.store(true, std::memory_order_release); }
+        void Resume() { m_is_paused.store(false, std::memory_order_release); }
+        [[nodiscard]] bool IsPaused() const { return m_is_paused.load(std::memory_order_relaxed); }
+
     private:
         void TryRebalanceTasks()
         {
@@ -254,6 +259,13 @@ namespace RandEngine::Core::Job
 
             while (m_is_running.load(std::memory_order_relaxed))
             {
+                
+                if (m_is_paused.load(std::memory_order_relaxed))
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+
                 if (worker_index == 0 && m_enable_auto_balance.load(std::memory_order_relaxed))
                 {
                     TryRebalanceTasks();

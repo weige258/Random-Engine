@@ -9,7 +9,7 @@ namespace RandEngine::Engine
         
         void EngineMain::Init()
         {
-                system = new RandEngine::Systems::System();
+                system = RandEngine::Core::Memory::MasterPtr<RandEngine::Systems::System>(new RandEngine::Systems::System());
                 this->system->Init(*system);
         }
 
@@ -24,7 +24,6 @@ namespace RandEngine::Engine
         void EngineMain::Destroy()
         {
                 this->system->Destroy();
-                delete this->system;
         }
 
 }

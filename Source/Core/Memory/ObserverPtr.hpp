@@ -71,6 +71,8 @@ namespace RandEngine::Core::Memory
 
         ObserverPtr() noexcept = default; //[cite: 41]
 
+        ObserverPtr(std::nullptr_t) noexcept : ptr(nullptr), block(nullptr) {}
+
         explicit ObserverPtr(const MasterPtr<T> &master) noexcept
             : ptr(master.Get()), block(master.block)
         {

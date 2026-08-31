@@ -18,9 +18,7 @@ namespace RandEngine::Core::Job
         LogicBehaviorJobWorker() = default;
 
         LogicBehaviorJobWorker(RandEngine::Systems::System &system)
-        {
-            this->m_system = &system;
-        };
+            : m_system(&system) {}
         ~LogicBehaviorJobWorker() override = default;
 
         void SetSystem(RandEngine::Systems::System &system){

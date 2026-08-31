@@ -1,5 +1,5 @@
 #include "Systems/System.hpp"
-
+#include "Core/Memory/MasterPtr.hpp"
 #pragma once
 
 namespace RandEngine::Engine
@@ -10,9 +10,10 @@ namespace RandEngine::Engine
 
     private:
         bool is_running = true;
-
+ 
     public:
-        static inline RandEngine::Systems::System *system = nullptr;
+        
+        static inline RandEngine::Core::Memory::MasterPtr<RandEngine::Systems::System> system ;
 
         void Init();
 
