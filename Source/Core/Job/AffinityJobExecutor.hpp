@@ -11,7 +11,7 @@
 namespace RandEngine::Core::Job
 {
     template <typename Task>
-    class AffinityJobWorker
+    class AffinityJobExecutor
     {
     private:
         struct WorkerThreadData
@@ -37,11 +37,11 @@ namespace RandEngine::Core::Job
         }
 
     public:
-        AffinityJobWorker() = default;
-        virtual ~AffinityJobWorker() { Stop(); }
+        AffinityJobExecutor() = default;
+        virtual ~AffinityJobExecutor() { Stop(); }
 
-        AffinityJobWorker(const AffinityJobWorker &) = delete;
-        AffinityJobWorker &operator=(const AffinityJobWorker &) = delete;
+        AffinityJobExecutor(const AffinityJobExecutor &) = delete;
+        AffinityJobExecutor &operator=(const AffinityJobExecutor &) = delete;
 
         bool PushTask(const Task &task, int target_thread_idx = -1)
         {

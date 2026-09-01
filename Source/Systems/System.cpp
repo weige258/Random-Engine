@@ -6,9 +6,7 @@ namespace RandEngine::Systems
     {
 
         device_system.Init(system);
-
         resource_system.Init(system);
-
         runtime_system.Init(system);
     }
 

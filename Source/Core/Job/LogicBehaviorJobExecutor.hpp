@@ -1,6 +1,6 @@
 #pragma once
 #include "Memory/ObserverPtr.hpp"
-#include "AffinityJobWorker.hpp"
+#include "AffinityJobExecutor.hpp"
 #include "Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 #include "Time/Timer.hpp"
 #include "vector"
@@ -9,17 +9,17 @@
 namespace RandEngine::Core::Job
 {
 
-    struct LogicBehaviorJobWorker : public AffinityJobWorker<Memory::ObserverPtr<Behaviors::ILogicUpdateBehavior>>
+    struct LogicBehaviorJobExecutor : public AffinityJobExecutor<Memory::ObserverPtr<Behaviors::ILogicUpdateBehavior>>
     {
     private:
        RandEngine::Systems::System *m_system = nullptr;
 
     public:
-        LogicBehaviorJobWorker() = default;
+        LogicBehaviorJobExecutor() = default;
 
-        LogicBehaviorJobWorker(RandEngine::Systems::System &system)
+        LogicBehaviorJobExecutor(RandEngine::Systems::System &system)
             : m_system(&system) {}
-        ~LogicBehaviorJobWorker() override = default;
+        ~LogicBehaviorJobExecutor() override = default;
 
         void SetSystem(RandEngine::Systems::System &system){
             m_system = &system;

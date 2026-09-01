@@ -8,12 +8,11 @@ namespace RandEngine::Systems::RuntimeSystems
         const std::vector<Core::Memory::ObserverPtr<Core::Behaviors::ILogicUpdateBehavior>>& added,
         const std::vector<Core::Memory::ObserverPtr<Core::Behaviors::ILogicUpdateBehavior>>& deleted)
     {
-
         for (const auto& task : deleted)
         {
             if (task)
             {
-                logic_behavior_job_worker.RemoveTask(task);
+                logic_job_executor.RemoveTask(task);
             }
         }
 
@@ -21,17 +20,17 @@ namespace RandEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                logic_behavior_job_worker.PushTask(task);
+                logic_job_executor.PushTask(task);
             }
         }
     }
 
     void LogicUpdateSystem::Init(System &system)
     {
-        logic_behavior_job_worker.SetSystem(system);
-
         uint32_t require_thread_count = (system.device_system.cpu_system.GetCPUInfo().logical_processor_count / 4);
-        logic_behavior_job_worker.Start(require_thread_count);
+
+        logic_job_executor.SetSystem(system);
+        logic_job_executor.Start(require_thread_count);
     }
 
     void LogicUpdateSystem::Run(System &system)

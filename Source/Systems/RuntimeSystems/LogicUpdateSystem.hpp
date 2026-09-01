@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Core/Job/LogicBehaviorJobWorker.hpp"
+#include "Core/Job/AffinityJobExecutor.hpp"
+#include "Core/Job/LogicBehaviorJobExecutor.hpp"
 #include "Systems/ISystem.hpp"
 
 namespace RandEngine::Systems
@@ -10,11 +11,10 @@ namespace RandEngine::Systems
 
 namespace RandEngine::Systems::RuntimeSystems
 {
-
     class LogicUpdateSystem : public ISystem
     {
     private:
-        Core::Job::LogicBehaviorJobWorker logic_behavior_job_worker;
+        Core::Job::LogicBehaviorJobExecutor logic_job_executor;
 
     public:
         void ApplyBehaviorChanges(
@@ -22,9 +22,7 @@ namespace RandEngine::Systems::RuntimeSystems
             const std::vector<Core::Memory::ObserverPtr<Core::Behaviors::ILogicUpdateBehavior>> &deleted);
 
         void Init(System &system);
-
         void Run(System &system);
-
         void Destroy();
     };
 }

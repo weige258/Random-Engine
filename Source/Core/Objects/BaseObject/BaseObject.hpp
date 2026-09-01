@@ -6,10 +6,8 @@
 #include <vector>
 
 #define BIND_BEHAVIORS(...) \
-    std::vector<::RandEngine::Core::Memory::MasterPtr<::RandEngine::Core::Behaviors::BindBaseBehavior>> GetBehaviors() override \
-    { \
-        return ::RandEngine::Core::Behaviors::BehaviorSet<__VA_ARGS__>{}; \
-    }
+public: \
+    using BindBehaviors = ::RandEngine::Core::Behaviors::BehaviorSet<__VA_ARGS__>;
 
 namespace RandEngine::Core::Objects
 {
@@ -19,7 +17,5 @@ namespace RandEngine::Core::Objects
 
         BaseObject();
         virtual ~BaseObject();
-
-        virtual std::vector<Memory::MasterPtr<Behaviors::BindBaseBehavior>> GetBehaviors();
     };
 }
