@@ -6,7 +6,7 @@
 #include "vector"
 #include "unordered_set"
 
-namespace RandEngine::Core::Job
+namespace RandEngine::Core::Jobs::JobExecutor
 {
 
     struct LogicBehaviorJobExecutor : public AffinityJobExecutor<Memory::ObserverPtr<Behaviors::ILogicUpdateBehavior>>

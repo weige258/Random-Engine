@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/Job/AffinityJobExecutor.hpp"
-#include "Core/Job/LogicBehaviorJobExecutor.hpp"
+#include "Core/Jobs/JobExecutor/AffinityJobExecutor.hpp"
+#include "Core/Jobs/JobExecutor/LogicBehaviorJobExecutor.hpp"
 #include "Systems/ISystem.hpp"
 
 namespace RandEngine::Systems
@@ -14,7 +14,7 @@ namespace RandEngine::Systems::RuntimeSystems
     class LogicUpdateSystem : public ISystem
     {
     private:
-        Core::Job::LogicBehaviorJobExecutor logic_job_executor;
+        Core::Jobs::JobExecutor::LogicBehaviorJobExecutor logic_job_executor;
 
     public:
         void ApplyBehaviorChanges(

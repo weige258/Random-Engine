@@ -7,10 +7,11 @@
 #include <mutex>
 #include <type_traits>
 
-namespace RandEngine::Core::Job
+namespace RandEngine::Core::Jobs::JobExecutor
 {
+
     template <typename Task>
-    class SharedJobWorker
+    class SharedJobExecutor
     {
     private:
         boost::lockfree::queue<Task, boost::lockfree::fixed_sized<false>> m_task_queue;
@@ -32,11 +33,11 @@ namespace RandEngine::Core::Job
         }
 
     public:
-        SharedJobWorker(size_t capacity = 2048) : m_task_queue(capacity) {}
-        virtual ~SharedJobWorker() { Stop(); }
+        SharedJobExecutor(size_t capacity = 2048) : m_task_queue(capacity) {}
+        virtual ~SharedJobExecutor() { Stop(); }
 
-        SharedJobWorker(const SharedJobWorker &) = delete;
-        SharedJobWorker &operator=(const SharedJobWorker &) = delete;
+        SharedJobExecutor(const SharedJobExecutor &) = delete;
+        SharedJobExecutor &operator=(const SharedJobExecutor &) = delete;
 
         void SetThreadCount(size_t thread_count)
         {

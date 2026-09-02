@@ -2,7 +2,7 @@
 #include "Core/Objects/BaseObject/BaseObject.hpp"
 #include "Core/Behaviors/BaseBehavior/BindBaseBehavoir.hpp"
 #include "Core/Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
-#include "Core/Job/Job.hpp"
+#include "Core/Jobs/Job/BaseJob.hpp"
 #include "Core/Math/Math.hpp"
 #include "Core/Memory/MasterPtr.hpp"
 #include "Core/Memory/ObserverPtr.hpp"
@@ -15,7 +15,7 @@
 #include <array>
 
 using namespace RandEngine::Core::Behaviors;
-using namespace RandEngine::Core::Job;
+using namespace RandEngine::Core::Jobs;
 using namespace RandEngine::Core::Objects;
 using namespace RandEngine::Core::Math;
 

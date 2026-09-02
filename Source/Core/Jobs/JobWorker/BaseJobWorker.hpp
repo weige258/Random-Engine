@@ -6,10 +6,10 @@
 #include <condition_variable>
 
 
-namespace RandEngine::Core::Job
+namespace RandEngine::Core::Jobs::JobWorker
 {
 
-    class JobWorker
+    class BaseJobWorker
     {
     protected:
         std::thread m_thread;
@@ -21,11 +21,11 @@ namespace RandEngine::Core::Job
         std::condition_variable m_cv;
 
     public:
-        JobWorker() = default;
-        virtual ~JobWorker() { Stop(); }
+        BaseJobWorker() = default;
+        virtual ~BaseJobWorker() { Stop(); }
 
-        JobWorker(const JobWorker&) = delete;
-        JobWorker& operator=(const JobWorker&) = delete;
+        BaseJobWorker(const BaseJobWorker&) = delete;
+        BaseJobWorker& operator=(const BaseJobWorker&) = delete;
 
         // 启动 Worker 线程
         void Start()

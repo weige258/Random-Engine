@@ -6,10 +6,10 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace RandEngine::Core::Job
+namespace RandEngine::Core::Jobs::JobWorker
 {
     template <typename Task>
-    class LoopWorker : public JobWorker
+    class LoopJobWorker : public JobWorker
     {
     protected:
         std::vector<Task> m_dedicated_tasks;
@@ -26,8 +26,8 @@ namespace RandEngine::Core::Job
         }
 
     public:
-        LoopWorker() = default;
-        ~LoopWorker() override { Stop(); }
+        LoopJobWorker() = default;
+        ~LoopJobWorker() override { Stop(); }
 
         // --- 基础任务容器操作 ---
 

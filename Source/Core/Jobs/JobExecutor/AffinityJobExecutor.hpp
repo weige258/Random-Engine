@@ -8,7 +8,7 @@
 #include <limits>
 #include <type_traits>
 
-namespace RandEngine::Core::Job
+namespace RandEngine::Core::Jobs::JobExecutor
 {
     template <typename Task>
     class AffinityJobExecutor
