@@ -7,7 +7,7 @@
     #include <sys/utsname.h>
 #endif
 
-namespace RandEngine::Platform::OS
+namespace RandomEngine::Platform::OS
 {
     std::string_view GetTypeName(OSType type) noexcept
     {

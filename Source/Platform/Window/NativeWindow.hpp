@@ -4,7 +4,7 @@
 #include "WindowDesc.hpp"
 #include "memory"
 
-namespace RandEngine::Platform::Window{
+namespace RandomEngine::Platform::Window{
 
 class NativeWindow {
 public:

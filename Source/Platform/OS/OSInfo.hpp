@@ -3,7 +3,7 @@
 #include "OSVersion.hpp"
 #include "OSTargetEnvironment.hpp"
 
-namespace RandEngine::Platform::OS
+namespace RandomEngine::Platform::OS
 {
     struct OSInfo
     {

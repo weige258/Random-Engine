@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace RandEngine::Platform::Window
+namespace RandomEngine::Platform::Window
 {
     //窗体类型
     enum class WindowMode : uint8_t

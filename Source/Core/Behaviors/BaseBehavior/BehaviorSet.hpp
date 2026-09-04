@@ -4,7 +4,7 @@
 #include "Core/Memory/MasterPtr.hpp"
 #include <vector>
 
-namespace RandEngine::Core::Behaviors
+namespace RandomEngine::Core::Behaviors
 {
 
     template <typename BaseBehaviorRequire,typename... Behaviors>

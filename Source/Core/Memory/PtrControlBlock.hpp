@@ -2,7 +2,7 @@
 #include <atomic>
 #include <cstdint>
 
-namespace RandEngine::Core::Memory
+namespace RandomEngine::Core::Memory
 {
     struct PtrControlBlock
     {

@@ -17,12 +17,12 @@
 #include "Jobs/JobWorker/LogicBehaviorJobWorker.hpp"
 #include "Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 
-namespace RandEngine::Systems
+namespace RandomEngine::Systems
 {
     struct System;
 }
 
-namespace RandEngine::Core::Jobs::JobExecutor
+namespace RandomEngine::Core::Jobs::JobExecutor
 {
     class LogicBehaviorJobExecutor
     {
@@ -38,7 +38,7 @@ namespace RandEngine::Core::Jobs::JobExecutor
         std::vector<std::unique_ptr<Core::Jobs::JobWorker::LogicBehaviorJobWorker>> m_workers;
         mutable std::shared_mutex m_workers_mutex; // shared: Push/Remove/均衡采样; unique: 重建
 
-        ::RandEngine::Systems::System *m_system = nullptr;
+        ::RandomEngine::Systems::System *m_system = nullptr;
 
         std::atomic<bool>   m_is_running{false};
         std::atomic<bool>   m_auto_balance{true};
@@ -53,14 +53,14 @@ namespace RandEngine::Core::Jobs::JobExecutor
 
     public:
         LogicBehaviorJobExecutor() = default;
-        explicit LogicBehaviorJobExecutor(::RandEngine::Systems::System &system)
+        explicit LogicBehaviorJobExecutor(::RandomEngine::Systems::System &system)
             : m_system(&system) {}
         ~LogicBehaviorJobExecutor() { Stop(); }
 
         LogicBehaviorJobExecutor(const LogicBehaviorJobExecutor &) = delete;
         LogicBehaviorJobExecutor &operator=(const LogicBehaviorJobExecutor &) = delete;
 
-        void SetSystem(::RandEngine::Systems::System &system)
+        void SetSystem(::RandomEngine::Systems::System &system)
         {
             m_system = &system;
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);

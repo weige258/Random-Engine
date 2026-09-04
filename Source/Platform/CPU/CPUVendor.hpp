@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-namespace RandEngine::Platform::CPU{
+namespace RandomEngine::Platform::CPU{
 
 enum class CPUVendor : uint8_t
     {

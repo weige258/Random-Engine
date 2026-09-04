@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <stdexcept>
 
-namespace RandEngine::Core::Math{
+namespace RandomEngine::Core::Math{
 
 // 静态范围类
 template <int Start, int End, int Step = 1>

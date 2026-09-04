@@ -2,7 +2,7 @@
 #include "Core/Memory/MasterPtr.hpp"
 #pragma once
 
-namespace RandEngine::Engine
+namespace RandomEngine::Engine
 {
 
     class EngineMain
@@ -13,7 +13,7 @@ namespace RandEngine::Engine
  
     public:
         
-        static inline RandEngine::Core::Memory::MasterPtr<RandEngine::Systems::System> system ;
+        static inline RandomEngine::Core::Memory::MasterPtr<RandomEngine::Systems::System> system ;
 
         void Init();
 

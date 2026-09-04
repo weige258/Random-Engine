@@ -1,6 +1,6 @@
 #pragma once
 
-namespace RandEngine::Systems{
+namespace RandomEngine::Systems{
 struct System;
 
 struct ISystem

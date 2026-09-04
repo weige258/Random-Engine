@@ -18,7 +18,7 @@
 
 #include <cmath>
 
-namespace RandEngine::Platform::SIMD
+namespace RandomEngine::Platform::SIMD
 {
 
 // =========================================================================
@@ -944,4 +944,4 @@ template <typename T> RSIMD_FORCEINLINE auto ConvertToInt(auto a) {
     else if constexpr (std::is_same_v<T, int32_t>) return ConvertToInti(a);
 }
 
-} // namespace RandEngine::Platform::SIMD
+} // namespace RandomEngine::Platform::SIMD

@@ -6,9 +6,9 @@ add_subdirectory(Core)
 add_subdirectory(Systems)
 add_subdirectory(Engine)
 
-add_executable(RandEngine main.cpp)
+add_executable(RandomEngine main.cpp)
 
-target_include_directories(RandEngine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(RandomEngine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(RandEngine PRIVATE Engine)
-target_link_libraries(RandEngine PRIVATE Core)
+target_link_libraries(RandomEngine PRIVATE Engine)
+target_link_libraries(RandomEngine PRIVATE Core)

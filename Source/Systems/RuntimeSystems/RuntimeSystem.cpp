@@ -1,7 +1,7 @@
 #include "RuntimeSystem.hpp"
 #include "Systems/System.hpp"
 
-namespace RandEngine::Systems::RuntimeSystems
+namespace RandomEngine::Systems::RuntimeSystems
 { 
     void RuntimeSystem::Init(Systems::System &system){
         logic_update_system.Init(system);

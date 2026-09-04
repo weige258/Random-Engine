@@ -10,7 +10,7 @@
     #error "Unsupported SIMD platform. Only x86 (SSE2/AVX) and ARM (NEON) are supported."
 #endif
 
-namespace RandEngine::Platform::SIMD
+namespace RandomEngine::Platform::SIMD
 {
 
 // =========================================================================
@@ -55,16 +55,16 @@ struct alignas(SIMDAlignment) SIMDVec
     RSIMD_FORCEINLINE SIMDVec(T scalar) : v(Set1<T>(scalar)) {}
 
     RSIMD_FORCEINLINE static SIMDVec Load(const T* ptr) {
-        return SIMDVec(::RandEngine::Platform::SIMD::Load<T>(ptr));
+        return SIMDVec(::RandomEngine::Platform::SIMD::Load<T>(ptr));
     }
     RSIMD_FORCEINLINE static SIMDVec LoadU(const T* ptr) {
-        return SIMDVec(::RandEngine::Platform::SIMD::LoadU<T>(ptr));
+        return SIMDVec(::RandomEngine::Platform::SIMD::LoadU<T>(ptr));
     }
     RSIMD_FORCEINLINE void Store(T* ptr) const {
-        ::RandEngine::Platform::SIMD::Store<T>(ptr, v);
+        ::RandomEngine::Platform::SIMD::Store<T>(ptr, v);
     }
     RSIMD_FORCEINLINE void StoreU(T* ptr) const {
-        ::RandEngine::Platform::SIMD::StoreU<T>(ptr, v);
+        ::RandomEngine::Platform::SIMD::StoreU<T>(ptr, v);
     }
 
     // 算术
@@ -88,28 +88,28 @@ struct alignas(SIMDAlignment) SIMDVec
     RSIMD_FORCEINLINE auto CmpGe(SIMDVec other) const { return CmpGE<T>(v, other.v); }
 
     // 数学
-    RSIMD_FORCEINLINE SIMDVec Sqrt() const { return SIMDVec(::RandEngine::Platform::SIMD::Sqrt<T>(v)); }
-    RSIMD_FORCEINLINE SIMDVec RSqrt() const { return SIMDVec(::RandEngine::Platform::SIMD::RSqrt<T>(v)); }
-    RSIMD_FORCEINLINE SIMDVec Rcp() const { return SIMDVec(::RandEngine::Platform::SIMD::Rcp<T>(v)); }
-    RSIMD_FORCEINLINE SIMDVec Min(SIMDVec other) const { return SIMDVec(::RandEngine::Platform::SIMD::Min<T>(v, other.v)); }
-    RSIMD_FORCEINLINE SIMDVec Max(SIMDVec other) const { return SIMDVec(::RandEngine::Platform::SIMD::Max<T>(v, other.v)); }
-    RSIMD_FORCEINLINE SIMDVec Abs() const { return SIMDVec(::RandEngine::Platform::SIMD::Abs<T>(v)); }
-    RSIMD_FORCEINLINE SIMDVec Floor() const { return SIMDVec(::RandEngine::Platform::SIMD::Floor<T>(v)); }
-    RSIMD_FORCEINLINE SIMDVec Ceil() const { return SIMDVec(::RandEngine::Platform::SIMD::Ceil<T>(v)); }
-    RSIMD_FORCEINLINE SIMDVec Round() const { return SIMDVec(::RandEngine::Platform::SIMD::Round<T>(v)); }
+    RSIMD_FORCEINLINE SIMDVec Sqrt() const { return SIMDVec(::RandomEngine::Platform::SIMD::Sqrt<T>(v)); }
+    RSIMD_FORCEINLINE SIMDVec RSqrt() const { return SIMDVec(::RandomEngine::Platform::SIMD::RSqrt<T>(v)); }
+    RSIMD_FORCEINLINE SIMDVec Rcp() const { return SIMDVec(::RandomEngine::Platform::SIMD::Rcp<T>(v)); }
+    RSIMD_FORCEINLINE SIMDVec Min(SIMDVec other) const { return SIMDVec(::RandomEngine::Platform::SIMD::Min<T>(v, other.v)); }
+    RSIMD_FORCEINLINE SIMDVec Max(SIMDVec other) const { return SIMDVec(::RandomEngine::Platform::SIMD::Max<T>(v, other.v)); }
+    RSIMD_FORCEINLINE SIMDVec Abs() const { return SIMDVec(::RandomEngine::Platform::SIMD::Abs<T>(v)); }
+    RSIMD_FORCEINLINE SIMDVec Floor() const { return SIMDVec(::RandomEngine::Platform::SIMD::Floor<T>(v)); }
+    RSIMD_FORCEINLINE SIMDVec Ceil() const { return SIMDVec(::RandomEngine::Platform::SIMD::Ceil<T>(v)); }
+    RSIMD_FORCEINLINE SIMDVec Round() const { return SIMDVec(::RandomEngine::Platform::SIMD::Round<T>(v)); }
 
     // FMA
     RSIMD_FORCEINLINE static SIMDVec FMAdd(SIMDVec a, SIMDVec b, SIMDVec c) {
-        return SIMDVec(::RandEngine::Platform::SIMD::FMAdd<T>(a.v, b.v, c.v));
+        return SIMDVec(::RandomEngine::Platform::SIMD::FMAdd<T>(a.v, b.v, c.v));
     }
     RSIMD_FORCEINLINE static SIMDVec FMSub(SIMDVec a, SIMDVec b, SIMDVec c) {
-        return SIMDVec(::RandEngine::Platform::SIMD::FMSub<T>(a.v, b.v, c.v));
+        return SIMDVec(::RandomEngine::Platform::SIMD::FMSub<T>(a.v, b.v, c.v));
     }
 
     // 水平归约
     RSIMD_FORCEINLINE T HSum() const { return HAdd<T>(v); }
-    RSIMD_FORCEINLINE T HMin() const { return ::RandEngine::Platform::SIMD::HMin<T>(v); }
-    RSIMD_FORCEINLINE T HMax() const { return ::RandEngine::Platform::SIMD::HMax<T>(v); }
+    RSIMD_FORCEINLINE T HMin() const { return ::RandomEngine::Platform::SIMD::HMin<T>(v); }
+    RSIMD_FORCEINLINE T HMax() const { return ::RandomEngine::Platform::SIMD::HMax<T>(v); }
 };
 
 // 便捷类型别名
@@ -117,4 +117,4 @@ using SIMDVec4f = SIMDVec<float>;
 using SIMDVec4d = SIMDVec<double>;
 using SIMDVec4i = SIMDVec<int32_t>;
 
-} // namespace RandEngine::Platform::SIMD
+} // namespace RandomEngine::Platform::SIMD

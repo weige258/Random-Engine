@@ -5,7 +5,7 @@
         "name": "Launch",
         "type": "cppvsdbg",
         "request": "launch",
-        "program": "${workspaceFolder}/Build/RandEngine.exe",
+        "program": "${workspaceFolder}/Build/RandomEngine.exe",
         "args": [],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",

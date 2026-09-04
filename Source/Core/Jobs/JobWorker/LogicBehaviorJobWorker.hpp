@@ -4,30 +4,30 @@
 #include "Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 #include "Time/Timer.hpp"
 
-namespace RandEngine::Systems { struct System; }
+namespace RandomEngine::Systems { struct System; }
 
-namespace RandEngine::Core::Jobs::JobWorker
+namespace RandomEngine::Core::Jobs::JobWorker
 {
     using LogicBehaviorJob = Core::Jobs::Job::BaseJob<&Behaviors::ILogicUpdateBehavior::LogicUpdate,
                                                       float,
-                                                      ::RandEngine::Systems::System &>;
+                                                      ::RandomEngine::Systems::System &>;
 
     class LogicBehaviorJobWorker : public LoopJobWorker<LogicBehaviorJob>
     {
     private:
-        ::RandEngine::Systems::System *m_system = nullptr;
+        ::RandomEngine::Systems::System *m_system = nullptr;
         Core::Time::Timer m_timer;
         float m_dt = 0.0f;
 
     public:
         LogicBehaviorJobWorker() = default;
 
-        explicit LogicBehaviorJobWorker(::RandEngine::Systems::System &system)
+        explicit LogicBehaviorJobWorker(::RandomEngine::Systems::System &system)
             : m_system(&system) {}
 
         ~LogicBehaviorJobWorker() override = default;
 
-        void SetSystem(::RandEngine::Systems::System &system)
+        void SetSystem(::RandomEngine::Systems::System &system)
         {
             m_system = &system;
         }

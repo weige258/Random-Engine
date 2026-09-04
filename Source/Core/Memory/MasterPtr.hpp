@@ -7,7 +7,7 @@
 #include <concepts>
 #include <functional>
 
-namespace RandEngine::Core::Memory
+namespace RandomEngine::Core::Memory
 {
     template <typename T>
     struct MasterPtr
@@ -135,9 +135,9 @@ namespace RandEngine::Core::Memory
 
 // 哈希支持
 template <typename T>
-struct std::hash<RandEngine::Core::Memory::MasterPtr<T>>
+struct std::hash<RandomEngine::Core::Memory::MasterPtr<T>>
 {
-    size_t operator()(const RandEngine::Core::Memory::MasterPtr<T> &p) const noexcept
+    size_t operator()(const RandomEngine::Core::Memory::MasterPtr<T> &p) const noexcept
     {
         return std::hash<T *>{}(p.Get());
     }

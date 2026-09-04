@@ -1,6 +1,6 @@
 #include "CPUSystem.hpp"
 
-namespace RandEngine::Systems::DeviceSystems{
+namespace RandomEngine::Systems::DeviceSystems{
     void CPUSystem::Init(){
         cpu_info = {};
         cpu_info.DetectAll();

@@ -2,7 +2,7 @@
 #include "Systems/ISystem.hpp"
 #include "Systems/RuntimeSystems/LogicUpdateSystem.hpp"
 
-namespace RandEngine::Systems::RuntimeSystems
+namespace RandomEngine::Systems::RuntimeSystems
 { 
 
 class RuntimeSystem:Systems::ISystem

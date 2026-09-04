@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <span>
 
-namespace RandEngine::Core::Containers
+namespace RandomEngine::Core::Containers
 {
 
     // 稀疏集

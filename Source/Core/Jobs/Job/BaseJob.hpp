@@ -3,7 +3,7 @@
 #include "Core/Memory/MasterPtr.hpp"
 #include "Core/Memory/ObserverPtr.hpp"
 
-namespace RandEngine::Core::Jobs::Job
+namespace RandomEngine::Core::Jobs::Job
 {
     template <auto Method>
     struct MethodClassOf;

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace RandEngine::Platform::OS{
+namespace RandomEngine::Platform::OS{
     enum class OSTargetEnvironment : uint8_t {
         Desktop,
         Mobile,

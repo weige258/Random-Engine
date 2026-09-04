@@ -4,7 +4,7 @@
 #include <utility>
 #include <functional>
 
-namespace RandEngine::Core::Memory
+namespace RandomEngine::Core::Memory
 {
     template <typename T>
     struct RefPtr
@@ -141,9 +141,9 @@ namespace RandEngine::Core::Memory
 
 // std::hash 特化支持
 template <typename T>
-struct std::hash<RandEngine::Core::Memory::RefPtr<T>>
+struct std::hash<RandomEngine::Core::Memory::RefPtr<T>>
 {
-    size_t operator()(const RandEngine::Core::Memory::RefPtr<T>& p) const noexcept
+    size_t operator()(const RandomEngine::Core::Memory::RefPtr<T>& p) const noexcept
     {
         return std::hash<T*>{}(p.Get());
     }

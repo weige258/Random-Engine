@@ -1,6 +1,6 @@
 #include "BindBaseBehavoir.hpp"
 
-namespace RandEngine::Core::Behaviors{
+namespace RandomEngine::Core::Behaviors{
 
     BindBaseBehavior::BindBaseBehavior()
     {

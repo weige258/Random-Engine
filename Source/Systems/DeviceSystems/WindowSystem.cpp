@@ -3,7 +3,7 @@
 
 #include "SDL3/SDL.h"
 
-namespace RandEngine::Systems::DeviceSystems
+namespace RandomEngine::Systems::DeviceSystems
 {
 
     bool WindowSystem::AddWindow(const Platform::Window::WindowDesc &desc)

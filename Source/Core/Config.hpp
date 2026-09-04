@@ -2,6 +2,6 @@
 
 #include <stdint.h>
 
-namespace RandEngine::Core::Config {
+namespace RandomEngine::Core::Config {
     using ObjectIDType = uint64_t; 
 }

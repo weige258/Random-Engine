@@ -3,12 +3,12 @@
 #include "Core/Jobs/JobExecutor/LogicBehaviorJobExecutor.hpp"
 #include "Systems/ISystem.hpp"
 
-namespace RandEngine::Systems
+namespace RandomEngine::Systems
 {
     struct System;
 }
 
-namespace RandEngine::Systems::RuntimeSystems
+namespace RandomEngine::Systems::RuntimeSystems
 {
     class LogicUpdateSystem : public ISystem
     {

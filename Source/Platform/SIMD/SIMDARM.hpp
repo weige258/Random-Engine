@@ -8,7 +8,7 @@
 
 #include <cmath>
 
-namespace RandEngine::Platform::SIMD
+namespace RandomEngine::Platform::SIMD
 {
 
 #if defined(RSIMD_NEON)
@@ -559,4 +559,4 @@ template <typename T> RSIMD_FORCEINLINE auto ConvertToInt(auto a) {
 
 #endif
 
-} // namespace RandEngine::Platform::SIMD
+} // namespace RandomEngine::Platform::SIMD

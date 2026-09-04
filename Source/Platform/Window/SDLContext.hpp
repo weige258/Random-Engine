@@ -4,7 +4,7 @@
 #include "memory"
 #include "SDL3/SDL.h"
 
-namespace RandEngine::Platform::Window
+namespace RandomEngine::Platform::Window
 {
 
     class SDLContext

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace RandEngine::Core::Jobs::JobWorker
+namespace RandomEngine::Core::Jobs::JobWorker
 {
     template <typename Job>
     class LoopJobWorker : public BaseJobWorker

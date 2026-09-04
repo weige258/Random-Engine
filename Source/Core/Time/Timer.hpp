@@ -2,7 +2,7 @@
 #include <chrono>
 #include <atomic>
 
-namespace RandEngine::Core::Time
+namespace RandomEngine::Core::Time
 {
 
     struct Timer final

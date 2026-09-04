@@ -16,7 +16,7 @@
     #include <immintrin.h>
 #endif
 
-namespace RandEngine::Platform::SIMD
+namespace RandomEngine::Platform::SIMD
 {
 
     // =========================================================================
@@ -283,4 +283,4 @@ namespace RandEngine::Platform::SIMD
     using VecU64 = uint64x2_t;
 #endif
 
-} // namespace RandEngine::Platform::SIMD
+} // namespace RandomEngine::Platform::SIMD

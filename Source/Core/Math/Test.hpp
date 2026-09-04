@@ -7,12 +7,12 @@
 //
 //   #include "Core/Math/Test.hpp"
 //   int main() {
-//       int fails = RandEngine::Core::Math::Test::RunAllMathTests();
+//       int fails = RandomEngine::Core::Math::Test::RunAllMathTests();
 //       return fails == 0 ? 0 : 1;
 //   }
 //
 // 也可单独调用某一分组：
-//   RandEngine::Core::Math::Test::TestVecFunctions();
+//   RandomEngine::Core::Math::Test::TestVecFunctions();
 // =============================================================================
 
 #include "Math.hpp"
@@ -21,7 +21,7 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace RandEngine::Core::Math::Test
+namespace RandomEngine::Core::Math::Test
 {
 
 // =============================================================================
@@ -33,9 +33,9 @@ inline int g_failures = 0;
 
 #define MATH_TEST_CHECK(...)                                                                   \
     do {                                                                                       \
-        ++::RandEngine::Core::Math::Test::g_checks;                                            \
+        ++::RandomEngine::Core::Math::Test::g_checks;                                            \
         if (!(__VA_ARGS__)) {                                                                  \
-            ++::RandEngine::Core::Math::Test::g_failures;                                      \
+            ++::RandomEngine::Core::Math::Test::g_failures;                                      \
             std::printf("    [FAIL] %s:%d\n", __FILE__, __LINE__);                             \
         }                                                                                      \
     } while (0)
@@ -922,4 +922,4 @@ inline int RunAllMathTests()
     return g_failures;
 }
 
-} // namespace RandEngine::Core::Math::Test
+} // namespace RandomEngine::Core::Math::Test

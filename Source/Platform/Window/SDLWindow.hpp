@@ -8,7 +8,7 @@
 #include <string>
 #include <stdexcept>
 
-namespace RandEngine::Platform::Window
+namespace RandomEngine::Platform::Window
 {
     class SDLWindow final : public NativeWindow
     {

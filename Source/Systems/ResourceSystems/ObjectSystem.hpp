@@ -10,12 +10,12 @@
 #include <span>
 #include <ranges>
 
-namespace RandEngine::Systems::ResourceSystems
+namespace RandomEngine::Systems::ResourceSystems
 {
     class ObjectSystem:Systems::ISystem
     {
     private:
-        RandEngine::Core::Containers::SparseSet<Core::Memory::MasterPtr<Core::Objects::BaseObject>, RandEngine::Core::Config::ObjectIDType> objects;
+        RandomEngine::Core::Containers::SparseSet<Core::Memory::MasterPtr<Core::Objects::BaseObject>, RandomEngine::Core::Config::ObjectIDType> objects;
 
     public:
         // 获取对象

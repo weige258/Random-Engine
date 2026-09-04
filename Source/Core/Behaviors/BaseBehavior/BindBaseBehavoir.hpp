@@ -2,7 +2,7 @@
 #include "BaseBehavior.hpp"
 #include "Config.hpp"
 
-namespace RandEngine::Core::Behaviors {
+namespace RandomEngine::Core::Behaviors {
     
     struct BindBaseBehavior: BaseBehavior
     {

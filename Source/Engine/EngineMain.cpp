@@ -4,12 +4,12 @@
 #include <iostream>
 
 
-namespace RandEngine::Engine
+namespace RandomEngine::Engine
 {
         
         void EngineMain::Init()
         {
-                system = RandEngine::Core::Memory::MasterPtr<RandEngine::Systems::System>(new RandEngine::Systems::System());
+                system = RandomEngine::Core::Memory::MasterPtr<RandomEngine::Systems::System>(new RandomEngine::Systems::System());
                 this->system->Init(*system);
         }
 

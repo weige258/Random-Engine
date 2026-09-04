@@ -9,7 +9,7 @@
 #include <vector>
 #include <utility>
 
-namespace RandEngine::Systems::ResourceSystems
+namespace RandomEngine::Systems::ResourceSystems
 {
 
     class BehaviorSystem : Systems::ISystem

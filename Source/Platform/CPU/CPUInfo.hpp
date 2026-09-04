@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace RandEngine::Platform::CPU
+namespace RandomEngine::Platform::CPU
 {
 
     struct CPUInfo

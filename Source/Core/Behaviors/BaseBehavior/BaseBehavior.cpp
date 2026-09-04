@@ -1,6 +1,6 @@
 #include "BaseBehavior.hpp"
 
-namespace RandEngine::Core::Behaviors {
+namespace RandomEngine::Core::Behaviors {
 
 	BaseBehavior::BaseBehavior(){}
 	

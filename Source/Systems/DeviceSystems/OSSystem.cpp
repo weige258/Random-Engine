@@ -1,6 +1,6 @@
 #include "OSSystem.hpp"
 
-namespace RandEngine::Systems::DeviceSystems {
+namespace RandomEngine::Systems::DeviceSystems {
 
     std::string_view OSSystem::GetTypeName() const noexcept {
         return Platform::OS::GetTypeName(info.type);

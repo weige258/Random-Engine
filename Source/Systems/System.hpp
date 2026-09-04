@@ -5,14 +5,14 @@
 #include "Systems/RuntimeSystems/RuntimeSystem.hpp"
 #include "Systems/ISystem.hpp"
 
-namespace RandEngine::Systems{
+namespace RandomEngine::Systems{
     
 
 struct System:Systems::ISystem{
     
-    RandEngine::Systems::DeviceSystems::DeviceSystem device_system ;
-    RandEngine::Systems::ResourceSystems::ResourceSystem resource_system ;
-    RandEngine::Systems::RuntimeSystems::RuntimeSystem runtime_system ;
+    RandomEngine::Systems::DeviceSystems::DeviceSystem device_system ;
+    RandomEngine::Systems::ResourceSystems::ResourceSystem resource_system ;
+    RandomEngine::Systems::RuntimeSystems::RuntimeSystem runtime_system ;
     
     void Init(System& system);
 

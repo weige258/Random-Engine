@@ -14,10 +14,10 @@
 #include <cmath>
 #include <array>
 
-using namespace RandEngine::Core::Behaviors;
-using namespace RandEngine::Core::Jobs;
-using namespace RandEngine::Core::Objects;
-using namespace RandEngine::Core::Math;
+using namespace RandomEngine::Core::Behaviors;
+using namespace RandomEngine::Core::Jobs;
+using namespace RandomEngine::Core::Objects;
+using namespace RandomEngine::Core::Math;
 
 struct EntityData
 {
@@ -54,7 +54,7 @@ static PerfCounters g_counters;
 
 struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         data.velocity += data.acceleration * delta_time;
@@ -72,7 +72,7 @@ struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         Vec3f neighbor_offset(data.position[1] * 0.3f - data.position[0] * 0.1f,
@@ -101,7 +101,7 @@ struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct BounceBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         constexpr float floor_y = -50.0f;
@@ -124,7 +124,7 @@ struct BounceBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         float speed = std::sqrt(LengthSquared(data.velocity));
@@ -139,7 +139,7 @@ struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct GravityBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         data.force += data.gravity * data.mass;
@@ -149,7 +149,7 @@ struct GravityBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         float angular_speed = std::sqrt(LengthSquared(data.angular_velocity));
@@ -166,7 +166,7 @@ struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct BoundaryBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         constexpr float bound = 100.0f;
@@ -190,7 +190,7 @@ struct BoundaryBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         Vec3f spring_anchor(0.0f, 0.0f, 0.0f);
@@ -207,7 +207,7 @@ struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         Vec3f neighbor_pos(data.position[1] * 0.5f + 10.0f,
@@ -228,7 +228,7 @@ struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct DampingBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandEngine::Systems::System &system) override
+    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto &data = system.resource_system.object_system.Get<EntityData>(bind_id);
         data.force -= data.velocity * 0.8f;
@@ -254,7 +254,7 @@ struct TestEntity : BaseObject, EntityData
 
 int main()
 {
-    RandEngine::Engine::EngineMain app;
+    RandomEngine::Engine::EngineMain app;
     app.Init();
 
     constexpr int NUM_ENTITIES = 100000;

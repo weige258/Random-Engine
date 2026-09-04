@@ -1,7 +1,7 @@
 #include "ResourceSystem.hpp"
 #include "Time/Timer.hpp"
 #include "iostream"
-namespace RandEngine::Systems::ResourceSystems {
+namespace RandomEngine::Systems::ResourceSystems {
     
     void ResourceSystem::Init(System& system){
        object_system.Init(system);

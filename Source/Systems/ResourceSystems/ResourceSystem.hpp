@@ -4,7 +4,7 @@
 #include "Behaviors/BaseBehavior/BindBaseBehavoir.hpp"
 #include "Systems/ISystem.hpp"
 
-namespace RandEngine::Systems::ResourceSystems
+namespace RandomEngine::Systems::ResourceSystems
 {
 
     class ResourceSystem : Systems::ISystem

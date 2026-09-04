@@ -8,7 +8,7 @@
     // #include "CocoaWindow.hpp"
 #endif
 
-namespace RandEngine::Platform::Window {
+namespace RandomEngine::Platform::Window {
 
 std::unique_ptr<NativeWindow> NativeWindow::Create(const WindowDesc& desc)
 {

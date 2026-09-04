@@ -14,7 +14,7 @@
     #endif
 #endif
 
-namespace RandEngine::Platform::CPU
+namespace RandomEngine::Platform::CPU
 {
     namespace
     {

@@ -1,6 +1,6 @@
 #include "System.hpp"
 
-namespace RandEngine::Systems
+namespace RandomEngine::Systems
 {
     void System::Init(System& system)
     {

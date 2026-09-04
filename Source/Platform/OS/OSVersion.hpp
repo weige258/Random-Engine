@@ -3,7 +3,7 @@
 #include <string>
 
 
-namespace RandEngine::Platform::OS {
+namespace RandomEngine::Platform::OS {
     struct OSVersion {
         uint32_t major = 0;
         uint32_t minor = 0;

@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <functional>
 
-namespace RandEngine::Core::Jobs::JobWorker
+namespace RandomEngine::Core::Jobs::JobWorker
 {
     /// ExecuteJobWorker：一次性命令队列 Worker
     ///  - 外部 PushTask() 加入命令

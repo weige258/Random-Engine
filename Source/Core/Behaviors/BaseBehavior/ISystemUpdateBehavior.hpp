@@ -1,10 +1,10 @@
 #pragma once
 
-namespace RandEngine::Core::Systems {
+namespace RandomEngine::Core::Systems {
     struct System; 
 }
 
-namespace RandEngine::Core::Behaviors
+namespace RandomEngine::Core::Behaviors
 {
     struct ISystemUpdateBehavior{
           virtual void SystemUpdate(Systems::System& system)=0;

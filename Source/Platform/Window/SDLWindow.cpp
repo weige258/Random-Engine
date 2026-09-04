@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-namespace RandEngine::Platform::Window{
+namespace RandomEngine::Platform::Window{
      
     SDLWindow::SDLWindow(const WindowDesc& desc):m_context(SDLContext::GetInstance())
     {

@@ -2,7 +2,7 @@
 #include "Systems/System.hpp"
 #include "Core/Jobs/Job/BaseJob.hpp"
 
-namespace RandEngine::Systems::RuntimeSystems
+namespace RandomEngine::Systems::RuntimeSystems
 {
 
     void LogicUpdateSystem::ApplyBehaviorChanges(

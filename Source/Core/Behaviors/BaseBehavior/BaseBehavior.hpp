@@ -3,7 +3,7 @@
 #include "Memory/MasterPtr.hpp"
 
 
-namespace RandEngine::Core::Behaviors{
+namespace RandomEngine::Core::Behaviors{
 
 struct BindBaseBehavior;
 

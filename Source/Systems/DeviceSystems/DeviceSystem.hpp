@@ -4,7 +4,7 @@
 #include "Systems/DeviceSystems/CPUSystem.hpp"
 #include "Systems/ISystem.hpp"
 
-namespace RandEngine::Systems::DeviceSystems
+namespace RandomEngine::Systems::DeviceSystems
 {
 
     class DeviceSystem : Systems::ISystem

@@ -5,7 +5,7 @@
 #include "variant"
 #include "Platform/Window/NativeWindow.hpp"
 
-namespace RandEngine::Systems::DeviceSystems
+namespace RandomEngine::Systems::DeviceSystems
 {
     class WindowSystem
     {

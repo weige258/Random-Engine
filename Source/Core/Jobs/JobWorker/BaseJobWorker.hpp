@@ -5,7 +5,7 @@
 #include <mutex>
 #include <condition_variable>
 
-namespace RandEngine::Core::Jobs::JobWorker
+namespace RandomEngine::Core::Jobs::JobWorker
 {
 
     class BaseJobWorker
