@@ -5,7 +5,6 @@
 #include <mutex>
 #include <condition_variable>
 
-
 namespace RandEngine::Core::Jobs::JobWorker
 {
 
@@ -22,10 +21,16 @@ namespace RandEngine::Core::Jobs::JobWorker
 
     public:
         BaseJobWorker() = default;
-        virtual ~BaseJobWorker() { Stop(); }
+        virtual ~BaseJobWorker()
+        {
+            if (m_thread.joinable())
+            {
+                Stop();
+            }
+        }
 
-        BaseJobWorker(const BaseJobWorker&) = delete;
-        BaseJobWorker& operator=(const BaseJobWorker&) = delete;
+        BaseJobWorker(const BaseJobWorker &) = delete;
+        BaseJobWorker &operator=(const BaseJobWorker &) = delete;
 
         // 启动 Worker 线程
         void Start()
@@ -34,7 +39,8 @@ namespace RandEngine::Core::Jobs::JobWorker
                 return;
 
             m_is_paused.store(false, std::memory_order_release);
-            m_thread = std::thread([this]() { ThreadLoop(); });
+            m_thread = std::thread([this]()
+                                   { ThreadLoop(); });
         }
 
         // 安全停止 Worker 线程
@@ -95,13 +101,12 @@ namespace RandEngine::Core::Jobs::JobWorker
 
         // 派生类辅助工具：队列无任务时挂起线程，防止 CPU 无意义 Spin
         template <typename Predicate>
-        void WaitIfIdle(Predicate&& has_work_predicate)
+        void WaitIfIdle(Predicate &&has_work_predicate)
         {
             std::unique_lock<std::mutex> lock(m_cv_mutex);
-            m_cv.wait(lock, [this, &has_work_predicate]() {
-                return !m_is_running.load(std::memory_order_relaxed) ||
-                       (!m_is_paused.load(std::memory_order_relaxed) && has_work_predicate());
-            });
+            m_cv.wait(lock, [this, &has_work_predicate]()
+                      { return !m_is_running.load(std::memory_order_relaxed) ||
+                               (!m_is_paused.load(std::memory_order_relaxed) && has_work_predicate()); });
         }
 
     private:
@@ -115,10 +120,9 @@ namespace RandEngine::Core::Jobs::JobWorker
                 if (m_is_paused.load(std::memory_order_relaxed))
                 {
                     std::unique_lock<std::mutex> lock(m_cv_mutex);
-                    m_cv.wait(lock, [this]() {
-                        return !m_is_running.load(std::memory_order_relaxed) ||
-                               !m_is_paused.load(std::memory_order_relaxed);
-                    });
+                    m_cv.wait(lock, [this]()
+                              { return !m_is_running.load(std::memory_order_relaxed) ||
+                                       !m_is_paused.load(std::memory_order_relaxed); });
 
                     if (!m_is_running.load(std::memory_order_relaxed))
                         break;
@@ -137,6 +141,5 @@ namespace RandEngine::Core::Jobs::JobWorker
             OnStop();
         }
     };
-    
+
 }
- 

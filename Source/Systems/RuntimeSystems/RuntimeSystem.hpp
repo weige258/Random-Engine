@@ -9,6 +9,7 @@ class RuntimeSystem:Systems::ISystem
 {
 private:
     LogicUpdateSystem logic_update_system;
+
 public:
 
     void Init(System& system);

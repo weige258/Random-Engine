@@ -1,5 +1,6 @@
 #include "LogicUpdateSystem.hpp"
 #include "Systems/System.hpp"
+#include "Core/Jobs/Job/BaseJob.hpp"
 
 namespace RandEngine::Systems::RuntimeSystems
 {
@@ -12,7 +13,7 @@ namespace RandEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                logic_job_executor.RemoveTask(task);
+                logic_job_executor.RemoveJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
             }
         }
 
@@ -20,7 +21,7 @@ namespace RandEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                logic_job_executor.PushTask(task);
+                logic_job_executor.PushJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
             }
         }
     }

@@ -1,4 +1,5 @@
 #pragma once
+#include <tuple>
 #include "Core/Memory/MasterPtr.hpp"
 #include "Core/Memory/ObserverPtr.hpp"
 
@@ -15,6 +16,7 @@ namespace RandEngine::Core::Jobs::Job
     {
     private:
         using InterfaceType = typename MethodClassOf<Method>::type;
+        using ExecuteArgsTuple = std::tuple<ExcuteArgs...>; 
 
         Memory::ObserverPtr<InterfaceType> m_behavior = nullptr;
 

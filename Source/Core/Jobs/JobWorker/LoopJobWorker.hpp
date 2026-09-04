@@ -1,5 +1,5 @@
 #pragma once
-#include "JobWorker.hpp"
+#include "BaseJobWorker.hpp"
 #include <vector>
 #include <mutex>
 #include <atomic>
@@ -8,18 +8,18 @@
 
 namespace RandEngine::Core::Jobs::JobWorker
 {
-    template <typename Task>
-    class LoopJobWorker : public JobWorker
+    template <typename Job>
+    class LoopJobWorker : public BaseJobWorker
     {
     protected:
-        std::vector<Task> m_dedicated_tasks;
+        std::vector<Job> m_dedicated_tasks;
         mutable std::mutex m_task_mutex;
         std::atomic<size_t> m_task_count{0};
-        std::vector<Task> m_local_cache;
+        std::vector<Job> m_local_cache;
 
-        static bool IsValid(const Task &task)
+        static bool IsValid(const Job &task)
         {
-            if constexpr (std::is_pointer_v<Task>)
+            if constexpr (std::is_pointer_v<Job>)
                 return task != nullptr;
             else
                 return static_cast<bool>(task);
@@ -31,7 +31,7 @@ namespace RandEngine::Core::Jobs::JobWorker
 
         // --- 基础任务容器操作 ---
 
-        void PushTask(const Task &task)
+        void PushTask(const Job &task)
         {
             if (!IsValid(task)) return;
             std::lock_guard<std::mutex> lock(m_task_mutex);
@@ -40,7 +40,7 @@ namespace RandEngine::Core::Jobs::JobWorker
             WakeUp();
         }
 
-        bool RemoveTask(const Task &task)
+        bool RemoveTask(const Job &task)
         {
             if (!IsValid(task)) return false;
             std::lock_guard<std::mutex> lock(m_task_mutex);
@@ -60,16 +60,16 @@ namespace RandEngine::Core::Jobs::JobWorker
         }
 
         std::unique_lock<std::mutex> LockQueue() { return std::unique_lock<std::mutex>(m_task_mutex); }
-        std::vector<Task>& GetRawTasks() { return m_dedicated_tasks; }
+        std::vector<Job>& GetRawTasks() { return m_dedicated_tasks; }
         void UpdateTaskCount() { m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed); }
 
     protected:
-        // 单个 Task 的派生重载点：默认尝试调用 task.Execute()，派生类可随意覆写执行细节
-        virtual void ExecuteTask(Task &task)
+        // 单个 Job 的派生重载点：默认尝试调用 task.Execute()，派生类可随意覆写执行细节
+        virtual void ExecuteJob(Job &job)
         {
-            if constexpr (requires { task.Execute(); })
+            if constexpr (requires { job.Execute(); })
             {
-                task.Execute();
+                job.Execute();
             }
         }
 
@@ -100,7 +100,7 @@ namespace RandEngine::Core::Jobs::JobWorker
             {
                 for (auto &task : m_local_cache)
                 {
-                    ExecuteTask(task);
+                    ExecuteJob(task);
                 }
             }
             else

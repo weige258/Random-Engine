@@ -7,7 +7,7 @@
 
 #define BIND_BEHAVIORS(...) \
 public: \
-    using BindBehaviors = ::RandEngine::Core::Behaviors::BehaviorSet<__VA_ARGS__>;
+    using BindBehaviors = ::RandEngine::Core::Behaviors::BindBehaviorSet<__VA_ARGS__>;
 
 namespace RandEngine::Core::Objects
 {

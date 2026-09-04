@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Core/Jobs/JobExecutor/AffinityJobExecutor.hpp"
 #include "Core/Jobs/JobExecutor/LogicBehaviorJobExecutor.hpp"
 #include "Systems/ISystem.hpp"
 
