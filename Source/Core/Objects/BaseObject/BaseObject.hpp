@@ -14,8 +14,14 @@ namespace RandomEngine::Core::Objects
     struct BaseObject
     {
         int64_t id = 0;
-
+  
         BaseObject();
         virtual ~BaseObject();
+
+        BaseObject(const BaseObject&) = delete;
+        BaseObject& operator=(const BaseObject&) = delete;
+
+        BaseObject(BaseObject&&) noexcept = default;
+        BaseObject& operator=(BaseObject&&) noexcept = default;
     };
 }

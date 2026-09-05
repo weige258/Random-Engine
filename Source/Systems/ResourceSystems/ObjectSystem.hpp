@@ -4,6 +4,8 @@
 #include "Core/Memory/MasterPtr.hpp"
 #include "Core/Memory/ObserverPtr.hpp"
 #include "Behaviors/BaseBehavior/ISystemUpdateBehavior.hpp"
+#include "Core/Memory/IdLock.hpp"
+#include "Core/Memory/IdLockedPtr.hpp"
 #include "Systems/ISystem.hpp"
 #include "Config.hpp"
 #include <memory>
@@ -12,25 +14,56 @@
 
 namespace RandomEngine::Systems::ResourceSystems
 {
-    class ObjectSystem:Systems::ISystem
+    class ObjectSystem : Systems::ISystem
     {
     private:
         RandomEngine::Core::Containers::SparseSet<Core::Memory::MasterPtr<Core::Objects::BaseObject>, RandomEngine::Core::Config::ObjectIDType> objects;
 
+        std::vector<Core::Memory::IdLock> m_locks;
+
+        [[nodiscard]] Core::Memory::IdLock &LockOf(Core::Config::ObjectIDType id) noexcept
+        {
+            // ObjectIDType 若为非整型类,在此取其 index/generation 字段做映射
+            return m_locks[static_cast<size_t>(id) % m_locks.size()];
+        }
+
     public:
         // 获取对象
-        Core::Objects::BaseObject &Get(const Core::Config::ObjectIDType &id)
+
+        Core::Objects::BaseObject &GetRef(const Core::Config::ObjectIDType &id)
         {
             return *objects.Get(id);
         }
 
         template <typename U>
-        U &Get(const Core::Config::ObjectIDType &id)
+        U &GetRef(const Core::Config::ObjectIDType &id)
         {
-            return dynamic_cast<U &>(Get(id));
+            return dynamic_cast<U &>(GetRef(id));
         }
 
-        Core::Memory::ObserverPtr<Core::Objects::BaseObject> GetPtr(const Core::Config::ObjectIDType &id)
+        auto GetLocked(Core::Config::ObjectIDType id)
+            -> Core::Memory::IdLockedPtr<Core::Objects::BaseObject>
+        {
+            if (auto *mp = objects.GetPtr(id))
+                return {Core::Memory::ObserverPtr<Core::Objects::BaseObject>(*mp),
+                        LockOf(id)}; // 基→基,约束天然通过
+            return {};
+        }
+
+        template <typename U>
+        auto GetLocked(Core::Config::ObjectIDType id) -> Core::Memory::IdLockedPtr<U>
+        {
+            if (auto *mp = objects.GetPtr(id))
+            {
+                Core::Memory::ObserverPtr<Core::Objects::BaseObject> obs(*mp);
+                // ★ dynamic_observer_cast 内部:dynamic_cast 调整指针到 EntityData 子对象
+                //   偏移 + 类型校验 + block 计数 +1,随后 obs 析构 -1,净 +1 归 LockedRef
+                return {Core::Memory::dynamic_observer_cast<U>(obs), LockOf(id)};
+            }
+            return {};
+        }
+
+        Core::Memory::ObserverPtr<Core::Objects::BaseObject> GetObserver(const Core::Config::ObjectIDType &id)
         {
             if (auto *master_ptr = objects.GetPtr(id))
             {
@@ -41,7 +74,7 @@ namespace RandomEngine::Systems::ResourceSystems
         }
 
         template <typename U>
-        Core::Memory::ObserverPtr<U> GetPtr(const Core::Config::ObjectIDType &id)
+        Core::Memory::ObserverPtr<U> GetObserver(const Core::Config::ObjectIDType &id)
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
             if (auto *master_ptr = objects.GetPtr(id))
@@ -60,7 +93,7 @@ namespace RandomEngine::Systems::ResourceSystems
                                                             { return *master_ptr; });
         }
 
-        std::vector<Core::Memory::ObserverPtr<Core::Objects::BaseObject>> GetAllPtr() const
+        std::vector<Core::Memory::ObserverPtr<Core::Objects::BaseObject>> GetAllObserver() const
         {
             std::vector<Core::Memory::ObserverPtr<Core::Objects::BaseObject>> result;
             auto raw_span = objects.GetAll();
@@ -85,7 +118,7 @@ namespace RandomEngine::Systems::ResourceSystems
         }
 
         template <typename U>
-        std::vector<Core::Memory::ObserverPtr<U>> GetAllPtr() const
+        std::vector<Core::Memory::ObserverPtr<U>> GetAllObserver() const
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
@@ -126,7 +159,7 @@ namespace RandomEngine::Systems::ResourceSystems
                                          { return {ids[i], *dynamic_cast<U *>(datas[i].Get())}; });
         }
 
-        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> GetAllPtrWithID() const
+        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> GetAllObserverWithID() const
         {
             std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> result;
             auto ids = objects.GetAllIDs();
@@ -144,7 +177,7 @@ namespace RandomEngine::Systems::ResourceSystems
         }
 
         template <typename U>
-        std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<U>>> GetAllPtrWithID() const
+        std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<U>>> GetAllObserverWithID() const
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
@@ -218,13 +251,13 @@ namespace RandomEngine::Systems::ResourceSystems
 
     public:
         // 系统执行
-        void Init(System& system)
+        void Init(System &system)
         {
+            m_locks = std::vector<Core::Memory::IdLock>(65536);
         }
 
-        void Run(System& system)
+        void Run(System &system)
         {
-
         }
 
         void Destroy()
