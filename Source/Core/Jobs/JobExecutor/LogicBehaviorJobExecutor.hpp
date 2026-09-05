@@ -149,7 +149,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                     KickBalancer();
             }
 
-            target->PushTask(job); // Worker 内部持队列锁入队 + WakeUp
+            target->PushTask(job);
             return true;
         }
 

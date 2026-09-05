@@ -5,6 +5,7 @@
 #include <atomic>
 #include <algorithm>
 #include <type_traits>
+#include <chrono>
 
 namespace RandomEngine::Core::Jobs::JobWorker
 {
@@ -15,6 +16,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
         std::vector<Job> m_dedicated_tasks;
         mutable std::mutex m_task_mutex;
         std::atomic<size_t> m_task_count{0};
+        std::atomic<bool> m_dirty{true};
         std::vector<Job> m_local_cache;
 
         static bool IsValid(const Job &task)
@@ -29,15 +31,13 @@ namespace RandomEngine::Core::Jobs::JobWorker
         LoopJobWorker() = default;
         ~LoopJobWorker() override { Stop(); }
 
-        // --- 基础任务容器操作 ---
-
         void PushTask(const Job &task)
         {
             if (!IsValid(task)) return;
             std::lock_guard<std::mutex> lock(m_task_mutex);
             m_dedicated_tasks.push_back(task);
             m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed);
-            WakeUp();
+            m_dirty.store(true, std::memory_order_relaxed);
         }
 
         bool RemoveTask(const Job &task)
@@ -49,14 +49,15 @@ namespace RandomEngine::Core::Jobs::JobWorker
             {
                 m_dedicated_tasks.erase(it, m_dedicated_tasks.end());
                 m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed);
+                m_dirty.store(true, std::memory_order_relaxed);
                 return true;
             }
             return false;
         }
 
-        [[nodiscard]] size_t GetTaskCount() const 
-        { 
-            return m_task_count.load(std::memory_order_relaxed); 
+        [[nodiscard]] size_t GetTaskCount() const
+        {
+            return m_task_count.load(std::memory_order_relaxed);
         }
 
         std::unique_lock<std::mutex> LockQueue() { return std::unique_lock<std::mutex>(m_task_mutex); }
@@ -64,7 +65,6 @@ namespace RandomEngine::Core::Jobs::JobWorker
         void UpdateTaskCount() { m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed); }
 
     protected:
-        // 单个 Job 的派生重载点：默认尝试调用 task.Execute()，派生类可随意覆写执行细节
         virtual void ExecuteJob(Job &job)
         {
             if constexpr (requires { job.Execute(); })
@@ -73,27 +73,12 @@ namespace RandomEngine::Core::Jobs::JobWorker
             }
         }
 
-        // 核心单步逻辑：仅做数据快照与顺序循环调用
         void ProcessWork() override
         {
+            if (m_dirty.exchange(false, std::memory_order_acquire))
             {
                 std::lock_guard<std::mutex> lock(m_task_mutex);
-                m_local_cache.clear();
-
-                bool has_invalid = false;
-                for (const auto &task : m_dedicated_tasks)
-                {
-                    if (IsValid(task))
-                        m_local_cache.push_back(task);
-                    else
-                        has_invalid = true;
-                }
-
-                if (has_invalid)
-                {
-                    m_dedicated_tasks = m_local_cache;
-                    m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed);
-                }
+                m_local_cache = m_dedicated_tasks;
             }
 
             if (!m_local_cache.empty())
@@ -105,7 +90,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
             }
             else
             {
-                std::this_thread::yield();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         }
     };
