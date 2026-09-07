@@ -44,22 +44,27 @@ namespace RandomEngine::Systems::ResourceSystems
         auto GetLocked(Core::Config::ObjectIDType id)
             -> Core::Memory::IdLockedPtr<Core::Objects::BaseObject>
         {
+            Core::Memory::IdLock &lock = LockOf(id);
+            lock.Lock(Core::Memory::ThisThreadToken());
             if (auto *mp = objects.GetPtr(id))
-                return {Core::Memory::ObserverPtr<Core::Objects::BaseObject>(*mp),
-                        LockOf(id)}; // 基→基,约束天然通过
+                return { mp->Get(), lock, typename Core::Memory::IdLockedPtr<Core::Objects::BaseObject>::adopt_lock_t{} };
+            lock.Unlock(Core::Memory::ThisThreadToken());
             return {};
         }
 
         template <typename U>
         auto GetLocked(Core::Config::ObjectIDType id) -> Core::Memory::IdLockedPtr<U>
         {
+            Core::Memory::IdLock &lock = LockOf(id);
+            lock.Lock(Core::Memory::ThisThreadToken());
             if (auto *mp = objects.GetPtr(id))
             {
-                Core::Memory::ObserverPtr<Core::Objects::BaseObject> obs(*mp);
-                // ★ dynamic_observer_cast 内部:dynamic_cast 调整指针到 EntityData 子对象
-                //   偏移 + 类型校验 + block 计数 +1,随后 obs 析构 -1,净 +1 归 LockedRef
-                return {Core::Memory::dynamic_observer_cast<U>(obs), LockOf(id)};
+                if (U *raw = dynamic_cast<U *>(mp->Get()))
+                    return { raw, lock, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{} };
+                lock.Unlock(Core::Memory::ThisThreadToken());
+                return {};
             }
+            lock.Unlock(Core::Memory::ThisThreadToken());
             return {};
         }
 
@@ -208,7 +213,10 @@ namespace RandomEngine::Systems::ResourceSystems
 
             Core::Config::ObjectIDType id = objects.AllocateID();
             ptr->id = id;
+            Core::Memory::IdLock &lock = LockOf(id);
+            lock.Lock(Core::Memory::ThisThreadToken());
             objects.Insert(id, std::move(ptr));
+            lock.Unlock(Core::Memory::ThisThreadToken());
             return id;
         }
 
@@ -236,7 +244,10 @@ namespace RandomEngine::Systems::ResourceSystems
 
                 Core::Config::ObjectIDType id = objects.AllocateID();
                 ptr->id = id;
-                objects.Insert(id, std::move(ptr)); // 完美匹配 SparseSet::Insert(id, DataType&&)
+                Core::Memory::IdLock &lock = LockOf(id);
+                lock.Lock(Core::Memory::ThisThreadToken());
+                objects.Insert(id, std::move(ptr));
+                lock.Unlock(Core::Memory::ThisThreadToken());
                 ids.push_back(id);
             }
 
@@ -246,7 +257,11 @@ namespace RandomEngine::Systems::ResourceSystems
         // 删除对象
         bool Delete(const Core::Config::ObjectIDType id)
         {
-            return objects.Delete(id);
+            Core::Memory::IdLock &lock = LockOf(id);
+            lock.Lock(Core::Memory::ThisThreadToken());
+            bool ok = objects.Delete(id);
+            lock.Unlock(Core::Memory::ThisThreadToken());
+            return ok;
         }
 
     public:

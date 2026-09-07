@@ -56,16 +56,16 @@ struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
-        data.velocity += data.acceleration * delta_time;
-        float speed_sq = LengthSquared(data.velocity);
-        if (speed_sq > data.max_speed * data.max_speed)
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
+        data->velocity += data->acceleration * delta_time;
+        float speed_sq = LengthSquared(data->velocity);
+        if (speed_sq > data->max_speed * data->max_speed)
         {
-            data.velocity = Normalize(data.velocity) * data.max_speed;
+            data->velocity = Normalize(data->velocity) * data->max_speed;
         }
-        data.position += data.velocity * delta_time;
-        data.acceleration = data.force / data.mass;
-        data.force = Vec3f(0.0f, 0.0f, 0.0f);
+        data->position += data->velocity * delta_time;
+        data->acceleration = data->force / data->mass;
+        data->force = Vec3f(0.0f, 0.0f, 0.0f);
         g_counters.movement.fetch_add(1, std::memory_order_relaxed);
     }
 };
@@ -74,25 +74,25 @@ struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
-        Vec3f neighbor_offset(data.position[1] * 0.3f - data.position[0] * 0.1f,
-                              data.position[2] * 0.2f - data.position[1] * 0.15f,
-                              data.position[0] * 0.25f - data.position[2] * 0.12f);
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
+        Vec3f neighbor_offset(data->position[1] * 0.3f - data->position[0] * 0.1f,
+                              data->position[2] * 0.2f - data->position[1] * 0.15f,
+                              data->position[0] * 0.25f - data->position[2] * 0.12f);
         float dist_sq = LengthSquared(neighbor_offset);
-        float min_dist = data.radius * 2.0f;
+        float min_dist = data->radius * 2.0f;
         if (dist_sq < min_dist * min_dist && dist_sq > 1e-8f)
         {
             float dist = std::sqrt(dist_sq);
             Vec3f normal = neighbor_offset / dist;
             float overlap = min_dist - dist;
-            data.force += normal * (overlap * 500.0f);
-            Vec3f rel_vel = data.velocity;
+            data->force += normal * (overlap * 500.0f);
+            Vec3f rel_vel = data->velocity;
             float vel_along_normal = Dot(rel_vel, normal);
             if (vel_along_normal < 0.0f)
             {
-                float j = -(1.0f + data.restitution) * vel_along_normal;
-                j /= (1.0f / data.mass + 1.0f / data.mass);
-                data.velocity += normal * (j / data.mass);
+                float j = -(1.0f + data->restitution) * vel_along_normal;
+                j /= (1.0f / data->mass + 1.0f / data->mass);
+                data->velocity += normal * (j / data->mass);
             }
         }
         g_counters.collision.fetch_add(1, std::memory_order_relaxed);
@@ -103,20 +103,20 @@ struct BounceBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         constexpr float floor_y = -50.0f;
         constexpr float ceil_y = 50.0f;
-        if (data.position.Y() - data.radius < floor_y)
+        if (data->position.Y() - data->radius < floor_y)
         {
-            data.position.SetY(floor_y + data.radius);
-            data.velocity.SetY(-data.velocity.Y() * data.restitution);
-            data.velocity.SetX(data.velocity.X() * 0.98f);
-            data.velocity.SetZ(data.velocity.Z() * 0.98f);
+            data->position.SetY(floor_y + data->radius);
+            data->velocity.SetY(-data->velocity.Y() * data->restitution);
+            data->velocity.SetX(data->velocity.X() * 0.98f);
+            data->velocity.SetZ(data->velocity.Z() * 0.98f);
         }
-        if (data.position.Y() + data.radius > ceil_y)
+        if (data->position.Y() + data->radius > ceil_y)
         {
-            data.position.SetY(ceil_y - data.radius);
-            data.velocity.SetY(-data.velocity.Y() * data.restitution);
+            data->position.SetY(ceil_y - data->radius);
+            data->velocity.SetY(-data->velocity.Y() * data->restitution);
         }
         g_counters.bounce.fetch_add(1, std::memory_order_relaxed);
     }
@@ -126,12 +126,12 @@ struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
-        float speed = std::sqrt(LengthSquared(data.velocity));
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
+        float speed = std::sqrt(LengthSquared(data->velocity));
         if (speed > 1e-6f)
         {
-            Vec3f drag_force = Normalize(data.velocity) * (-data.drag * speed * speed);
-            data.force += drag_force;
+            Vec3f drag_force = Normalize(data->velocity) * (-data->drag * speed * speed);
+            data->force += drag_force;
         }
         g_counters.drag.fetch_add(1, std::memory_order_relaxed);
     }
@@ -141,8 +141,8 @@ struct GravityBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
-        data.force += data.gravity * data.mass;
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
+        data->force += data->gravity * data->mass;
         g_counters.gravity.fetch_add(1, std::memory_order_relaxed);
     }
 };
@@ -151,15 +151,15 @@ struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
-        float angular_speed = std::sqrt(LengthSquared(data.angular_velocity));
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
+        float angular_speed = std::sqrt(LengthSquared(data->angular_velocity));
         if (angular_speed > 1e-8f)
         {
-            Vec3f angular_drag = Normalize(data.angular_velocity) * (-0.5f * angular_speed);
-            data.torque += angular_drag;
+            Vec3f angular_drag = Normalize(data->angular_velocity) * (-0.5f * angular_speed);
+            data->torque += angular_drag;
         }
-        data.angular_velocity += (data.torque / data.moment_of_inertia) * delta_time;
-        data.torque = Vec3f(0.0f, 0.0f, 0.0f);
+        data->angular_velocity += (data->torque / data->moment_of_inertia) * delta_time;
+        data->torque = Vec3f(0.0f, 0.0f, 0.0f);
         g_counters.rotation.fetch_add(1, std::memory_order_relaxed);
     }
 };
@@ -168,20 +168,20 @@ struct BoundaryBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         constexpr float bound = 100.0f;
         constexpr float k_wall = 1000.0f;
         for (int i = 0; i < 3; ++i)
         {
-            if (data.position[i] > bound)
+            if (data->position[i] > bound)
             {
-                data.force[i] -= k_wall * (data.position[i] - bound);
-                data.velocity[i] *= -0.5f;
+                data->force[i] -= k_wall * (data->position[i] - bound);
+                data->velocity[i] *= -0.5f;
             }
-            else if (data.position[i] < -bound)
+            else if (data->position[i] < -bound)
             {
-                data.force[i] -= k_wall * (data.position[i] + bound);
-                data.velocity[i] *= -0.5f;
+                data->force[i] -= k_wall * (data->position[i] + bound);
+                data->velocity[i] *= -0.5f;
             }
         }
         g_counters.boundary.fetch_add(1, std::memory_order_relaxed);
@@ -192,14 +192,14 @@ struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         Vec3f spring_anchor(0.0f, 0.0f, 0.0f);
-        Vec3f displacement = data.position - spring_anchor;
+        Vec3f displacement = data->position - spring_anchor;
         float dist = std::sqrt(LengthSquared(displacement));
         if (dist > 1e-6f)
         {
             Vec3f spring_force = Normalize(displacement) * (-2.0f * dist);
-            data.force += spring_force;
+            data->force += spring_force;
         }
         g_counters.force_accum.fetch_add(1, std::memory_order_relaxed);
     }
@@ -209,18 +209,18 @@ struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
-        Vec3f neighbor_pos(data.position[1] * 0.5f + 10.0f,
-                           data.position[2] * 0.3f - 5.0f,
-                           data.position[0] * 0.4f + 8.0f);
-        Vec3f diff = neighbor_pos - data.position;
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
+        Vec3f neighbor_pos(data->position[1] * 0.5f + 10.0f,
+                           data->position[2] * 0.3f - 5.0f,
+                           data->position[0] * 0.4f + 8.0f);
+        Vec3f diff = neighbor_pos - data->position;
         float rest_length = 5.0f;
         float current_length = std::sqrt(LengthSquared(diff));
         if (current_length > 1e-6f)
         {
             float stretch = current_length - rest_length;
             Vec3f spring_f = Normalize(diff) * (3.0f * stretch);
-            data.force += spring_f;
+            data->force += spring_f;
         }
         g_counters.spring.fetch_add(1, std::memory_order_relaxed);
     }
@@ -230,9 +230,9 @@ struct DampingBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
-        auto &data = system.resource_system.object_system.GetRef<EntityData>(bind_id);
-        data.force -= data.velocity * 0.8f;
-        data.torque -= data.angular_velocity * 0.3f;
+        auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
+        data->force -= data->velocity * 0.8f;
+        data->torque -= data->angular_velocity * 0.3f;
         g_counters.damping.fetch_add(1, std::memory_order_relaxed);
     }
 };
