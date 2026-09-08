@@ -2,7 +2,7 @@
 
 namespace RandomEngine::Systems
 {
-    void System::Init(System& system)
+    void System::Init(System &system)
     {
 
         device_system.Init(system);
@@ -10,7 +10,7 @@ namespace RandomEngine::Systems
         runtime_system.Init(system);
     }
 
-    void System::Run(System& system)
+    void System::Run(System &system)
     {
         device_system.Run(system);
         resource_system.Run(system);

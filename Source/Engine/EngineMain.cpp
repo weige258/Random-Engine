@@ -10,14 +10,14 @@ namespace RandomEngine::Engine
         void EngineMain::Init()
         {
                 system = RandomEngine::Core::Memory::MasterPtr<RandomEngine::Systems::System>(new RandomEngine::Systems::System());
-                this->system->Init(*system);
+                this->system->Init(*system.Get());
         }
 
         void EngineMain::Run()
         {
                 while (is_running)
                 {
-                        this->system->Run(*system);
+                        this->system->Run(*system.Get());
                 }
         }
 

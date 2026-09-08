@@ -2,6 +2,7 @@
 #include "Core/Objects/BaseObject/BaseObject.hpp"
 #include "Core/Behaviors/BaseBehavior/BindBaseBehavoir.hpp"
 #include "Core/Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
+#include "Core/Behaviors/BaseBehavior/IFixUpdateBehavior.hpp"
 #include "Core/Jobs/Job/BaseJob.hpp"
 #include "Core/Math/Math.hpp"
 #include "Core/Memory/MasterPtr.hpp"
@@ -36,18 +37,18 @@ struct EntityData
     float max_speed;
 };
 
-struct PerfCounters
+struct alignas(64) PerfCounters
 {
-    std::atomic<uint64_t> movement{0};
-    std::atomic<uint64_t> collision{0};
-    std::atomic<uint64_t> bounce{0};
-    std::atomic<uint64_t> drag{0};
-    std::atomic<uint64_t> gravity{0};
-    std::atomic<uint64_t> rotation{0};
-    std::atomic<uint64_t> boundary{0};
-    std::atomic<uint64_t> force_accum{0};
-    std::atomic<uint64_t> spring{0};
-    std::atomic<uint64_t> damping{0};
+    alignas(64) std::atomic<uint64_t> movement{0};
+    alignas(64) std::atomic<uint64_t> collision{0};
+    alignas(64) std::atomic<uint64_t> bounce{0};
+    alignas(64) std::atomic<uint64_t> drag{0};
+    alignas(64) std::atomic<uint64_t> gravity{0};
+    alignas(64) std::atomic<uint64_t> rotation{0};
+    alignas(64) std::atomic<uint64_t> boundary{0};
+    alignas(64) std::atomic<uint64_t> force_accum{0};
+    alignas(64) std::atomic<uint64_t> spring{0};
+    alignas(64) std::atomic<uint64_t> damping{0};
 };
 
 static PerfCounters g_counters;
@@ -99,9 +100,9 @@ struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
     }
 };
 
-struct BounceBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct BounceBehavior : BindBaseBehavior, IFixUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void FixUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         constexpr float floor_y = -50.0f;
@@ -164,9 +165,9 @@ struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
     }
 };
 
-struct BoundaryBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct BoundaryBehavior : BindBaseBehavior, IFixUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void FixUpdate(float delta_time, RandomEngine::Systems::System &system) override
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         constexpr float bound = 100.0f;
@@ -293,7 +294,7 @@ int main()
 
     while (true)
     {
-        app.system.Get()->Run(*app.system);
+        app.system.Get()->Run(*app.system.Get());
 
         auto now = std::chrono::steady_clock::now();
         float elapsed = std::chrono::duration<float>(now - last_time).count();

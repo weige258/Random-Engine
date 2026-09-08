@@ -64,6 +64,11 @@ namespace RandomEngine::Core::Jobs::JobWorker
         std::vector<Job>& GetRawTasks() { return m_dedicated_tasks; }
         void UpdateTaskCount() { m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed); }
 
+        // 由外部（如 Executor 的均衡迁移）在持有 m_task_mutex 修改 m_dedicated_tasks 后调用，
+        // 通知 Worker 在下一轮 ProcessWork 中重新刷新 m_local_cache。
+        // relaxed 足够：真正的数据可见性由调用方持有的 m_task_mutex 的 release-acquire 保证。
+        void MarkDirty() { m_dirty.store(true, std::memory_order_relaxed); }
+
     protected:
         virtual void ExecuteJob(Job &job)
         {

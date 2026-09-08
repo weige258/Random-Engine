@@ -13,7 +13,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                logic_job_executor.RemoveJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
+                logic_update_job_executor.RemoveJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
             }
         }
 
@@ -21,17 +21,17 @@ namespace RandomEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                logic_job_executor.PushJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
+                logic_update_job_executor.PushJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
             }
         }
     }
 
     void LogicUpdateSystem::Init(System &system)
     {
-        uint32_t require_thread_count = (system.device_system.cpu_system.GetCPUInfo().logical_processor_count / 4);
+        uint32_t require_thread_count = (system.device_system.cpu_system.GetCPUInfo().logical_processor_count / 4 );
 
-        logic_job_executor.SetSystem(system);
-        logic_job_executor.Start(require_thread_count);
+        logic_update_job_executor.SetSystem(system);
+        logic_update_job_executor.Start(require_thread_count);
     }
 
     void LogicUpdateSystem::Run(System &system)
@@ -47,5 +47,6 @@ namespace RandomEngine::Systems::RuntimeSystems
 
     void LogicUpdateSystem::Destroy()
     {
+        logic_update_job_executor.Stop();
     }
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Jobs/JobExecutor/LogicBehaviorJobExecutor.hpp"
+#include "Core/Jobs/JobExecutor/LogicUpdateJobExecutor.hpp"
 #include "Systems/ISystem.hpp"
 
 namespace RandomEngine::Systems
@@ -13,7 +13,7 @@ namespace RandomEngine::Systems::RuntimeSystems
     class LogicUpdateSystem : public ISystem
     {
     private:
-        Core::Jobs::JobExecutor::LogicBehaviorJobExecutor logic_job_executor;
+        Core::Jobs::JobExecutor::LogicUpdateJobExecutor logic_update_job_executor;
 
     public:
         void ApplyBehaviorChanges(

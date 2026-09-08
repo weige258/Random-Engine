@@ -65,12 +65,10 @@ namespace RandomEngine::Systems::ResourceSystems
             behaviors_should_delete.clear();
         }
 
-        void Init(System &system) {};
+        void Init(System &system) ;
 
-        void Run(System &system) {
+        void Run(System &system) ;
 
-        };
-
-        void Destroy() {};
+        void Destroy() ;
     };
 }

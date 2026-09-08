@@ -11,14 +11,19 @@
 #include <memory>
 #include <span>
 #include <ranges>
+#include <vector>
+#include <iostream>
 
 namespace RandomEngine::Systems::ResourceSystems
 {
+
     class ObjectSystem : Systems::ISystem
     {
     private:
+        // 对象容器
         RandomEngine::Core::Containers::SparseSet<Core::Memory::MasterPtr<Core::Objects::BaseObject>, RandomEngine::Core::Config::ObjectIDType> objects;
 
+        // id锁
         std::vector<Core::Memory::IdLock> m_locks;
 
         [[nodiscard]] Core::Memory::IdLock &LockOf(Core::Config::ObjectIDType id) noexcept
@@ -47,7 +52,7 @@ namespace RandomEngine::Systems::ResourceSystems
             Core::Memory::IdLock &lock = LockOf(id);
             lock.Lock(Core::Memory::ThisThreadToken());
             if (auto *mp = objects.GetPtr(id))
-                return { mp->Get(), lock, typename Core::Memory::IdLockedPtr<Core::Objects::BaseObject>::adopt_lock_t{} };
+                return {mp->Get(), lock, typename Core::Memory::IdLockedPtr<Core::Objects::BaseObject>::adopt_lock_t{}};
             lock.Unlock(Core::Memory::ThisThreadToken());
             return {};
         }
@@ -60,7 +65,7 @@ namespace RandomEngine::Systems::ResourceSystems
             if (auto *mp = objects.GetPtr(id))
             {
                 if (U *raw = dynamic_cast<U *>(mp->Get()))
-                    return { raw, lock, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{} };
+                    return {raw, lock, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{}};
                 lock.Unlock(Core::Memory::ThisThreadToken());
                 return {};
             }
@@ -265,18 +270,16 @@ namespace RandomEngine::Systems::ResourceSystems
         }
 
     public:
+        void InitLockSystem(uint32_t cpu_l3_cache_kb);
+    
         // 系统执行
-        void Init(System &system)
-        {
-            m_locks = std::vector<Core::Memory::IdLock>(65536);
-        }
+        void Init(System &system);
 
-        void Run(System &system)
-        {
-        }
 
-        void Destroy()
-        {
-        }
+        void Run(System &system);
+   
+
+        void Destroy();
+   
     };
 };

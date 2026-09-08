@@ -5,17 +5,19 @@ namespace RandomEngine::Systems::RuntimeSystems
 { 
     void RuntimeSystem::Init(Systems::System &system){
         logic_update_system.Init(system);
+        fix_update_system.Init(system);
     }
 
     void RuntimeSystem::Run(Systems::System &system){
         logic_update_system.Run(system);
-
+        fix_update_system.Run(system);
 
         system.resource_system.behavior_system.FlushPendingQueue();
     }
 
     void RuntimeSystem::Destroy(){
          logic_update_system.Destroy();
+         fix_update_system.Destroy();
     }
     
 }

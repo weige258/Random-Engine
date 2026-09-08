@@ -9,15 +9,19 @@ namespace RandomEngine::Core::Jobs::Job
     struct MethodClassOf;
 
     template <typename Class, typename Ret, typename... Args, Ret (Class::*method)(Args...)>
-    struct MethodClassOf<method> { using type = Class; };
+    struct MethodClassOf<method>
+    {
+        using type = Class;
+    };
 
     template <auto Method, typename... ExcuteArgs>
     struct BaseJob
     {
-    private:
+    public:
         using InterfaceType = typename MethodClassOf<Method>::type;
-        using ExecuteArgsTuple = std::tuple<ExcuteArgs...>; 
+        using ExecuteArgsTuple = std::tuple<ExcuteArgs...>;
 
+    private:
         Memory::ObserverPtr<InterfaceType> m_behavior = nullptr;
 
     public:
@@ -49,4 +53,15 @@ namespace RandomEngine::Core::Jobs::Job
 
         Memory::ObserverPtr<InterfaceType> GetBehavior() const { return m_behavior; }
     };
+
+    // job模板特化条件
+
+    template <typename T>
+    inline constexpr bool IsBaseJob_v = false;
+
+    template <auto Method, typename... Args>
+    inline constexpr bool IsBaseJob_v<BaseJob<Method, Args...>> = true;
+
+    template <typename T>
+    concept IsBaseJob = IsBaseJob_v<std::remove_cvref_t<T>>;
 }

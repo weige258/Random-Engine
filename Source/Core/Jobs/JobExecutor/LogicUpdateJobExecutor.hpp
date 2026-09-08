@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "Memory/ObserverPtr.hpp"
-#include "Jobs/JobWorker/LogicBehaviorJobWorker.hpp"
+#include "Jobs/JobWorker/LogicUpdateJobWorker.hpp"
 #include "Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 
 namespace RandomEngine::Systems
@@ -24,7 +24,7 @@ namespace RandomEngine::Systems
 
 namespace RandomEngine::Core::Jobs::JobExecutor
 {
-    class LogicBehaviorJobExecutor
+    class LogicUpdateJobExecutor
     {
     private:
         // ---- 均衡策略常量 ----
@@ -52,13 +52,13 @@ namespace RandomEngine::Core::Jobs::JobExecutor
         std::atomic<bool>       m_balancer_stop{false};
 
     public:
-        LogicBehaviorJobExecutor() = default;
-        explicit LogicBehaviorJobExecutor(::RandomEngine::Systems::System &system)
+        LogicUpdateJobExecutor() = default;
+        explicit LogicUpdateJobExecutor(::RandomEngine::Systems::System &system)
             : m_system(&system) {}
-        ~LogicBehaviorJobExecutor() { Stop(); }
+        ~LogicUpdateJobExecutor() { Stop(); }
 
-        LogicBehaviorJobExecutor(const LogicBehaviorJobExecutor &) = delete;
-        LogicBehaviorJobExecutor &operator=(const LogicBehaviorJobExecutor &) = delete;
+        LogicUpdateJobExecutor(const LogicUpdateJobExecutor &) = delete;
+        LogicUpdateJobExecutor &operator=(const LogicUpdateJobExecutor &) = delete;
 
         void SetSystem(::RandomEngine::Systems::System &system)
         {
@@ -378,6 +378,13 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
             workers[max_idx]->UpdateTaskCount();
             workers[min_idx]->UpdateTaskCount();
+
+            // 关键：迁移后两边都必须置 dirty，否则：
+            //   源 Worker: m_local_cache 仍持有已迁走的任务 → 幽灵执行
+            //   目标 Worker: m_local_cache 永不刷新 → 不执行新任务；
+            //               直到某次 Push 触发 dirty 时 → 双重执行
+            workers[max_idx]->MarkDirty();
+            workers[min_idx]->MarkDirty();
             return true;
         }
     };
