@@ -431,10 +431,10 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             return ComputeBoundsImpl(
                 m_hw_logical.load(std::memory_order_relaxed),
                 m_hw_physical.load(std::memory_order_relaxed),
-                0);
+                0, 0);
         }
 
-        [[nodiscard]] ThreadBounds ComputeBoundsImpl(size_t hw_logical, size_t hw_physical, int64_t max_lag) const
+        [[nodiscard]] ThreadBounds ComputeBoundsImpl(size_t hw_logical, size_t hw_physical, int64_t max_lag, size_t cur_workers) const
         {
             if (hw_logical == 0) hw_logical = std::thread::hardware_concurrency();
             if (hw_logical == 0) hw_logical = 4;
@@ -448,7 +448,8 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             const double headroom = (hw_cap > lower) ? static_cast<double>(hw_cap - lower) : 0.0;
 
             // CPU 使用率决定预算衰减：高 CPU → 少扩，低 CPU → 多扩
-            // 有积压时旁路 decay——CPU 高恰恰是因为 Worker 在诚实干活
+            // 无积压：正常门槛 60~85%，外部 CPU 高也不扩
+            // 有积压：抬高门槛 93~99%，只在真正饱和时限制扩容；且不逼缩（max≥cur）
             const float cpu = m_cpu_ema.load(std::memory_order_relaxed);
             double decay = 1.0;
             if (max_lag == 0)
@@ -456,10 +457,23 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                 if (cpu >= 0.85f)       decay = 0.0;
                 else if (cpu > 0.60f)   decay = 1.0 - static_cast<double>(cpu - 0.60f) / 0.25;
             }
+            else
+            {
+                if (cpu >= 0.99f)       decay = 0.0;
+                else if (cpu > 0.93f)   decay = 1.0 - static_cast<double>(cpu - 0.93f) / 0.06;
+            }
 
             const size_t budget = static_cast<size_t>(headroom * decay);
+            size_t upper = lower + budget;
 
-            return {lower, lower + budget};
+            // 有积压时不逼缩：upper 至少等于当前 worker 数，只限制增长空间
+            // （由 ScaleController.Feed 的缩容逻辑负责渐进缩容）
+            if (max_lag > 0 && cur_workers > 0)
+            {
+                upper = std::max(upper, cur_workers);
+            }
+
+            return {lower, upper};
         }
 
         // ---------------- 运行时调整线程数（增量逼近，不停机） ----------------
@@ -562,6 +576,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
             worker->Start();
             m_workers.push_back(std::move(worker));
+
         }
 
         void ShrinkOne()
@@ -569,11 +584,9 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             std::unique_lock<std::shared_mutex> lock(m_workers_mutex);
             if (m_workers.size() <= 1) return;
 
-            // 取末尾 Worker，先停后收
             auto &victim = m_workers.back();
             victim->Stop();
 
-            // 收集孤儿任务，RR 分发到剩余 Worker
             std::vector<Core::Jobs::JobWorker::FixUpdateBehaviorJob> orphans;
             {
                 auto queue_lock = victim->LockQueue();
@@ -705,20 +718,19 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                     if (m_auto_scale.load(std::memory_order_relaxed))
                     {
                         const int64_t max_lag = MeasureMaxLag();
+                        const size_t cur = m_workers.size();
                         const ThreadBounds tb = ComputeBoundsImpl(
                             m_hw_logical.load(std::memory_order_relaxed),
                             m_hw_physical.load(std::memory_order_relaxed),
-                            max_lag);
-                        const size_t cur = m_workers.size();
+                            max_lag, cur);
 
                         if (cur < tb.lower)
                         {
                             for (size_t i = 0; i < tb.lower - cur; ++i) GrowOne();
                         }
-                        else if (cur > tb.upper && max_lag == 0)
+                        else if (cur > tb.upper)
                         {
-                            // 硬约束：worker 数必须在 [lower, upper] 范围内
-                            for (size_t i = 0; i < cur - tb.upper; ++i) ShrinkOne();
+                            ShrinkOne();
                         }
                         else
                         {
