@@ -14,6 +14,7 @@ namespace RandomEngine::Systems::DeviceSystems{
 
         void Destroy();
 
-         Platform::CPU::CPUInfo GetCPUInfo();
+        const Platform::CPU::CPUInfo& GetCPUInfo() const;
+        Platform::CPU::CPUInfo& GetCPUInfo();
     };
 }

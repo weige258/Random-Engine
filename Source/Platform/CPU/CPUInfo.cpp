@@ -1,4 +1,5 @@
 #include "CPUInfo.hpp"
+#include <chrono>
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -68,36 +69,67 @@ namespace RandomEngine::Platform::CPU
     void CPUInfo::DetectRuntime()
     {
 #if defined(_WIN32)
-        static uint64_t prev_idle_time   = 0;
-        static uint64_t prev_kernel_time = 0;
-        static uint64_t prev_user_time   = 0;
+        const auto now_wall = std::chrono::steady_clock::now();
 
-        FILETIME idle_time, kernel_time, user_time;
-        if (GetSystemTimes(&idle_time, &kernel_time, &user_time))
+        if (!m_runtime_initialized)
         {
-            uint64_t idle   = FileTimeToUInt64(idle_time);
-            uint64_t kernel = FileTimeToUInt64(kernel_time);
-            uint64_t user   = FileTimeToUInt64(user_time);
+            FILETIME creation, exit, kernel, user;
+            if (GetProcessTimes(GetCurrentProcess(), &creation, &exit, &kernel, &user))
+                m_window_start_proc = FileTimeToUInt64(kernel) + FileTimeToUInt64(user);
 
-            uint64_t delta_idle   = idle - prev_idle_time;
-            uint64_t delta_kernel = kernel - prev_kernel_time;
-            uint64_t delta_user   = user - prev_user_time;
-
-            uint64_t delta_total = delta_kernel + delta_user;
-
-            if (delta_total > 0)
+            FILETIME sys_idle, sys_kernel, sys_user;
+            if (GetSystemTimes(&sys_idle, &sys_kernel, &sys_user))
             {
-                float idle_fraction = static_cast<float>(delta_idle) / static_cast<float>(delta_total);
-                total_usage_percentage = (1.0f - idle_fraction) * 100.0f;
-
-                if (total_usage_percentage < 0.0f) total_usage_percentage = 0.0f;
-                if (total_usage_percentage > 100.0f) total_usage_percentage = 100.0f;
+                m_window_start_system_idle  = FileTimeToUInt64(sys_idle);
+                m_window_start_system_total = FileTimeToUInt64(sys_kernel) + FileTimeToUInt64(sys_user);
             }
 
-            prev_idle_time   = idle;
-            prev_kernel_time = kernel;
-            prev_user_time   = user;
+            m_window_start_wall = now_wall;
+            m_runtime_initialized = true;
+            total_usage_percentage = 0.0f;
+            system_usage_percentage = 0.0f;
+            return;
         }
+
+        const int64_t window_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            now_wall - m_window_start_wall).count();
+
+        if (window_ns < 1'000'000'000LL)
+            return;
+
+        FILETIME creation, exit, kernel, user;
+        if (GetProcessTimes(GetCurrentProcess(), &creation, &exit, &kernel, &user))
+        {
+            const uint64_t proc_time = FileTimeToUInt64(kernel) + FileTimeToUInt64(user);
+            const uint64_t delta_proc = proc_time - m_window_start_proc;
+            const double delta_wall_100ns = static_cast<double>(window_ns) / 100.0;
+            const double cpu_fraction = static_cast<double>(delta_proc) / delta_wall_100ns;
+            const int cores = logical_processor_count > 0 ? logical_processor_count : 1;
+            total_usage_percentage = static_cast<float>(cpu_fraction / cores * 100.0);
+            if (total_usage_percentage < 0.0f) total_usage_percentage = 0.0f;
+            if (total_usage_percentage > 100.0f) total_usage_percentage = 100.0f;
+            m_window_start_proc = proc_time;
+        }
+
+        FILETIME sys_idle, sys_kernel, sys_user;
+        if (GetSystemTimes(&sys_idle, &sys_kernel, &sys_user))
+        {
+            const uint64_t idle_time = FileTimeToUInt64(sys_idle);
+            const uint64_t total_time = FileTimeToUInt64(sys_kernel) + FileTimeToUInt64(sys_user);
+            const uint64_t delta_idle  = idle_time - m_window_start_system_idle;
+            const uint64_t delta_total = total_time - m_window_start_system_total;
+            if (delta_total > 0)
+            {
+                const double sys_usage = 1.0 - static_cast<double>(delta_idle) / static_cast<double>(delta_total);
+                system_usage_percentage = static_cast<float>(sys_usage * 100.0);
+                if (system_usage_percentage < 0.0f) system_usage_percentage = 0.0f;
+                if (system_usage_percentage > 100.0f) system_usage_percentage = 100.0f;
+            }
+            m_window_start_system_idle  = idle_time;
+            m_window_start_system_total = total_time;
+        }
+
+        m_window_start_wall = now_wall;
 #endif
     }
 

@@ -10,6 +10,7 @@ namespace RandomEngine::Systems::RuntimeSystems{
         private:
             float fixed_delta_time=1.0f/30.0f;
             Core::Jobs::JobExecutor::FixUpdateJobExecutor fix_update_job_executor;
+            std::chrono::steady_clock::time_point m_last_cpu_sample;
 
         public:
             void ApplyBehaviorChanges(
@@ -21,5 +22,7 @@ namespace RandomEngine::Systems::RuntimeSystems{
             void Run(System& system);
 
             void Destroy();
+
+            void UpdateCpuPressure(System& system);
     };
 }

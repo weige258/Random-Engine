@@ -5,8 +5,6 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
-#include <cstddef>
-#include <cstdio>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -39,84 +37,81 @@ namespace RandomEngine::Core::Jobs::JobExecutor
      */
     struct ScaleController
     {
-        float ema = 0.0f;
         int   consecutive_high = 0;
-
+        int   consecutive_low  = 0;
         std::chrono::steady_clock::time_point last_action_time{std::chrono::steady_clock::now()};
-
-        // ---- AIMD 收缩 ----
-        std::chrono::steady_clock::time_point idle_since;
-        int   idle_threshold_sec = 10;
         std::chrono::steady_clock::time_point last_shrink_time;
+        std::chrono::steady_clock::time_point idle_since;
         bool  shrink_pending = false;
+        int   last_shrink_amount = 0;
 
         // ---- D 项：排水检测 ----
         int64_t prev_max_lag = 0;
 
-        static constexpr float  kEmaAlpha            = 0.3f;
         static constexpr int    kConsecutiveThreshold = 3;
-        static constexpr int    kLagDepth             = 2;      // <2 为毛刺，不算饥饿
-        static constexpr int    kExpandCooldownSec    = 8;      // 冷却（5→8）
-        static constexpr double kDrainRatio           = 0.20;   // D 项：lag 下降 20% 即排水
+        static constexpr int    kLagDepth             = 2;
+        static constexpr int    kExpandCooldownSec    = 8;
+        static constexpr int    kShrinkCooldownSec    = 10;
+        static constexpr double kDrainRatio           = 0.20;
 
         void Reset()
         {
-            ema                = 0.0f;
             consecutive_high   = 0;
+            consecutive_low    = 0;
             last_action_time   = std::chrono::steady_clock::now();
-            idle_since         = {};
-            idle_threshold_sec = 10;
             last_shrink_time   = {};
+            idle_since         = {};
             shrink_pending     = false;
+            last_shrink_amount = 0;
             prev_max_lag       = 0;
         }
 
-        int Feed(int64_t max_lag, size_t cur, size_t upper, size_t home)
+        int Feed(int64_t max_lag, size_t cur, size_t upper, size_t lower)
         {
             const auto now = std::chrono::steady_clock::now();
 
-            // ---- 深度门槛：lag < kLagDepth 视为毛刺，不产生压力 ----
-            const double pressure = (max_lag >= kLagDepth) ? 2.0 : 0.0;
+            // ---- 卡顿保护：lag 异常大时可能是系统卡顿虚高，不视为真实压力 ----
+            const bool maybe_stall = (max_lag > 1000);
+            const bool pressure = (max_lag >= kLagDepth) && !maybe_stall;
 
-            // ---- AIMD 反弹：裁后 5s 内 lag 重现 → 撤裁 + 加倍空闲门槛 ----
-            if (shrink_pending && pressure > 0.0)
+            // ---- AIMD 反弹：裁后 5s 内 lag 重现 → 撤裁 + 冷却翻倍 ----
+            if (shrink_pending && pressure)
             {
                 if (now - last_shrink_time < std::chrono::seconds(5))
                 {
-                    idle_threshold_sec = std::min(idle_threshold_sec * 2, 60);
-                    shrink_pending     = false;
                     last_action_time   = now;
                     consecutive_high   = 0;
-                    ema                = 0.0f;
+                    consecutive_low    = 0;
+                    idle_since         = {};
+                    shrink_pending     = false;
                     prev_max_lag       = max_lag;
-                    return 1;
+                    return last_shrink_amount;
                 }
                 shrink_pending = false;
             }
 
-            // ---- EMA ----
-            ema = kEmaAlpha * static_cast<float>(pressure) + (1.0f - kEmaAlpha) * ema;
-
-            if (pressure > 0.0)
+            if (pressure)
             {
                 ++consecutive_high;
-                idle_since = now;
+                consecutive_low = 0;
+                idle_since      = {};
             }
             else
             {
                 consecutive_high = 0;
+                ++consecutive_low;
                 if (idle_since == std::chrono::steady_clock::time_point{})
                     idle_since = now;
             }
 
             const auto elapsed = now - last_action_time;
 
-            // ---- 扩：consecutive≥3 + P 分级 + D 排水检测 ----
+            // ---- 扩容：P + I + D ----
             if (consecutive_high >= kConsecutiveThreshold &&
                 cur < upper &&
                 elapsed >= std::chrono::seconds(kExpandCooldownSec))
             {
-                // D 项：lag 逐窗下降 ≥20% → 系统在回血，抑制扩
+                // ---- D 项：排水检测 ----
                 const bool draining = (prev_max_lag > 0) &&
                     (static_cast<double>(max_lag) < static_cast<double>(prev_max_lag) * (1.0 - kDrainRatio));
 
@@ -129,33 +124,55 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                     return 0;
                 }
 
-                // P 项：误差分级 → 微调/真缺 分档
-                int expand_n = 0;
-                if (max_lag >= 2 && max_lag <= 5)
-                    expand_n = 1;
-                else if (max_lag > 5)
-                    expand_n = 2;
-
-                if (expand_n > 0)
-                {
-                    last_action_time = now;
-                    consecutive_high = 0;
-                    return std::min<int>(expand_n, static_cast<int>(upper - cur));
-                }
+                // P 项：误差分级（卡顿虚高时保守 +1）
+                int expand_n = (max_lag > 5 && !maybe_stall) ? 2 : 1;
+                last_action_time = now;
+                consecutive_high = 0;
+                return std::min<int>(expand_n, static_cast<int>(upper - cur));
             }
 
             prev_max_lag = max_lag;
 
-            // ---- AIMD 缩：lag==0 持续 idle_threshold 秒，-1 ----
-            if (pressure == 0.0 && cur > home &&
-                idle_since != std::chrono::steady_clock::time_point{} &&
-                now - idle_since >= std::chrono::seconds(idle_threshold_sec))
+            // ---- 缩容 ----
+            if (consecutive_low >= kConsecutiveThreshold && cur > lower)
             {
-                idle_since       = now;
-                last_shrink_time = now;
-                shrink_pending   = true;
-                last_action_time = now;
-                return -1;
+                // lag==0 快速缩容：系统已证明能轻松处理，4s 冷却即可
+                if (max_lag == 0 && elapsed >= std::chrono::seconds(4))
+                {
+                    last_shrink_time   = now;
+                    shrink_pending     = true;
+                    last_shrink_amount = 1;
+                    last_action_time   = now;
+                    consecutive_low    = 0;
+                    return -1;
+                }
+
+                // 空闲时长分级缩容：idle_since 不重置，持续累积
+                const auto idle_sec = std::chrono::duration_cast<std::chrono::seconds>(
+                    now - idle_since).count();
+
+                // 冷却随空闲时长递减：越闲越敢动
+                int cooldown = kShrinkCooldownSec;
+                if (idle_sec >= 40)      cooldown = 4;
+                else if (idle_sec >= 25) cooldown = 6;
+                else if (idle_sec >= 15) cooldown = 8;
+
+                if (elapsed >= std::chrono::seconds(cooldown))
+                {
+                    int shrink_n = 1;
+                    if (idle_sec >= 40)      shrink_n = 4;
+                    else if (idle_sec >= 25) shrink_n = 3;
+                    else if (idle_sec >= 15) shrink_n = 2;
+
+                    shrink_n = std::min<int>(shrink_n, static_cast<int>(cur - lower));
+
+                    last_shrink_time   = now;
+                    shrink_pending     = true;
+                    last_shrink_amount = shrink_n;
+                    last_action_time   = now;
+                    consecutive_low    = 0;
+                    return -shrink_n;
+                }
             }
 
             return 0;
@@ -204,7 +221,6 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         // ---- Stepper：统一计量真实时间，发布全局步号 ----
         Core::Time::Timer     m_stepper_timer;
-        float                 m_accumulator = 0.0f;
         std::atomic<int64_t>  m_step_target{0};
         std::thread           m_stepper_thread;
         std::atomic<bool>     m_stepper_stop{false};
@@ -218,6 +234,12 @@ namespace RandomEngine::Core::Jobs::JobExecutor
         ScaleController     m_scaler;
         std::atomic<bool>   m_auto_scale{true};
         std::chrono::steady_clock::time_point m_last_scale_check;
+
+        std::atomic<float>   m_cpu_ema{0.0f};
+        std::atomic<int64_t> m_cpu_sample_ns{0};
+        std::atomic<size_t>  m_hw_logical{0};
+        std::atomic<size_t>  m_hw_physical{0};
+        int                  m_saturate_count = 0;
 
         // ---- 控制面：均衡线程 ----
         std::thread             m_balance_thread;
@@ -253,12 +275,11 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         void SetFixedTimestep(float fixed_dt)
         {
-            const float dt = fixed_dt > 0.0f ? fixed_dt : (1.0f / 60.0f);
-            m_fixed_dt.store(dt, std::memory_order_release);
-            m_accumulator = 0.0f;
+            const float new_dt = fixed_dt > 0.0f ? fixed_dt : (1.0f / 60.0f);
+            m_fixed_dt.store(new_dt, std::memory_order_release);
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);
             for (auto &w : m_workers)
-                if (w) w->SetFixedTimestep(dt);
+                if (w) w->SetFixedTimestep(new_dt);
         }
 
         void SetMaxSteps(int max_steps)
@@ -379,6 +400,68 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             m_auto_scale.store(enable, std::memory_order_relaxed);
         }
 
+        struct ThreadBounds
+        {
+            size_t lower;
+            size_t upper;
+        };
+
+        void UpdateCpuPressure(float cpu_usage_0_to_1, size_t hw_logical, size_t hw_physical)
+        {
+            constexpr float kAlpha = 0.2f;
+            const float prev = m_cpu_ema.load(std::memory_order_relaxed);
+            const float next = (m_cpu_sample_ns.load(std::memory_order_relaxed) == 0)
+                ? cpu_usage_0_to_1
+                : kAlpha * cpu_usage_0_to_1 + (1.0f - kAlpha) * prev;
+            m_cpu_ema.store(next, std::memory_order_relaxed);
+            m_cpu_sample_ns.store(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count(),
+                std::memory_order_relaxed);
+
+            if (m_hw_logical.load(std::memory_order_relaxed) == 0)
+            {
+                m_hw_logical.store(hw_logical, std::memory_order_relaxed);
+                m_hw_physical.store(hw_physical, std::memory_order_relaxed);
+            }
+        }
+
+        [[nodiscard]] ThreadBounds ComputeBounds()
+        {
+            return ComputeBoundsImpl(
+                m_hw_logical.load(std::memory_order_relaxed),
+                m_hw_physical.load(std::memory_order_relaxed),
+                0);
+        }
+
+        [[nodiscard]] ThreadBounds ComputeBoundsImpl(size_t hw_logical, size_t hw_physical, int64_t max_lag) const
+        {
+            if (hw_logical == 0) hw_logical = std::thread::hardware_concurrency();
+            if (hw_logical == 0) hw_logical = 4;
+            if (hw_physical == 0 || hw_physical > hw_logical)
+                hw_physical = (hw_logical > 1) ? hw_logical / 2 : 1;
+
+            const size_t lower = m_baseline.load(std::memory_order_relaxed);
+
+            constexpr size_t kSmtAllowance = 2;
+            const size_t hw_cap = std::min(hw_logical, hw_physical + kSmtAllowance);
+            const double headroom = (hw_cap > lower) ? static_cast<double>(hw_cap - lower) : 0.0;
+
+            // CPU 使用率决定预算衰减：高 CPU → 少扩，低 CPU → 多扩
+            // 有积压时旁路 decay——CPU 高恰恰是因为 Worker 在诚实干活
+            const float cpu = m_cpu_ema.load(std::memory_order_relaxed);
+            double decay = 1.0;
+            if (max_lag == 0)
+            {
+                if (cpu >= 0.85f)       decay = 0.0;
+                else if (cpu > 0.60f)   decay = 1.0 - static_cast<double>(cpu - 0.60f) / 0.25;
+            }
+
+            const size_t budget = static_cast<size_t>(headroom * decay);
+
+            return {lower, lower + budget};
+        }
+
         // ---------------- 运行时调整线程数（增量逼近，不停机） ----------------
 
         void SetThreadCount(size_t thread_count)
@@ -479,7 +562,6 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
             worker->Start();
             m_workers.push_back(std::move(worker));
-            std::printf("[FixExecutor] thread count: %zu\n", m_workers.size());
         }
 
         void ShrinkOne()
@@ -500,8 +582,6 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             }
 
             m_workers.pop_back();
-            std::printf("[FixExecutor] thread count: %zu\n", m_workers.size());
-            // victim 析构，无人持执行权 → 零双重执行
 
             for (size_t i = 0; i < orphans.size(); ++i)
             {
@@ -531,7 +611,6 @@ namespace RandomEngine::Core::Jobs::JobExecutor
         {
             m_stepper_stop.store(false, std::memory_order_release);
             m_stepper_timer.Start();
-            m_accumulator = 0.0f;
             m_step_target.store(0, std::memory_order_release);
             m_stepper_thread = std::thread([this]() { StepperLoop(); });
         }
@@ -564,8 +643,6 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                     m_step_target.fetch_add(1, std::memory_order_release);
                     accumulator -= fixed_dt;
                 }
-
-                m_accumulator = accumulator;
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
@@ -628,14 +705,42 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                     if (m_auto_scale.load(std::memory_order_relaxed))
                     {
                         const int64_t max_lag = MeasureMaxLag();
-                        const size_t  home    = m_baseline.load(std::memory_order_relaxed);
-                        const size_t  upper   = std::max<size_t>(
-                            std::thread::hardware_concurrency(), home);
-                        const int     act     = m_scaler.Feed(
-                            max_lag, m_workers.size(), upper, home);
+                        const ThreadBounds tb = ComputeBoundsImpl(
+                            m_hw_logical.load(std::memory_order_relaxed),
+                            m_hw_physical.load(std::memory_order_relaxed),
+                            max_lag);
+                        const size_t cur = m_workers.size();
 
-                        for (int i = 0; i <  act; ++i) GrowOne();
-                        for (int i = 0; i < -act; ++i) ShrinkOne();
+                        if (cur < tb.lower)
+                        {
+                            for (size_t i = 0; i < tb.lower - cur; ++i) GrowOne();
+                        }
+                        else if (cur > tb.upper && max_lag == 0)
+                        {
+                            // 硬约束：worker 数必须在 [lower, upper] 范围内
+                            for (size_t i = 0; i < cur - tb.upper; ++i) ShrinkOne();
+                        }
+                        else
+                        {
+                            const int act = m_scaler.Feed(max_lag, cur, tb.upper, tb.lower);
+
+                            if (act > 0)
+                            {
+                                for (int i = 0; i < act; ++i) GrowOne();
+                            }
+                            else if (act < 0)
+                            {
+                                for (int i = 0; i < -act; ++i) ShrinkOne();
+                            }
+
+                            if (max_lag > 0 && cur >= tb.upper)
+                            {
+                                if (++m_saturate_count >= 6)
+                                {
+                                    m_saturate_count = 0;
+                                }
+                            }
+                        }
                     }
                 }
 

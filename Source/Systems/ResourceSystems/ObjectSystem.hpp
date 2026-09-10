@@ -6,6 +6,7 @@
 #include "Behaviors/BaseBehavior/ISystemUpdateBehavior.hpp"
 #include "Core/Memory/IdLock.hpp"
 #include "Core/Memory/IdLockedPtr.hpp"
+#include "Core/Cast/Cast.hpp"
 #include "Systems/ISystem.hpp"
 #include "Config.hpp"
 #include <memory>
@@ -43,7 +44,7 @@ namespace RandomEngine::Systems::ResourceSystems
         template <typename U>
         U &GetRef(const Core::Config::ObjectIDType &id)
         {
-            return dynamic_cast<U &>(GetRef(id));
+            return Core::Cast::ReCast<U &>(GetRef(id));
         }
 
         auto GetLocked(Core::Config::ObjectIDType id)
@@ -64,7 +65,7 @@ namespace RandomEngine::Systems::ResourceSystems
             lock.Lock(Core::Memory::ThisThreadToken());
             if (auto *mp = objects.GetPtr(id))
             {
-                if (U *raw = dynamic_cast<U *>(mp->Get()))
+                if (U *raw = Core::Cast::ReCast<U*>(mp->Get()))
                     return {raw, lock, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{}};
                 lock.Unlock(Core::Memory::ThisThreadToken());
                 return {};
@@ -89,7 +90,7 @@ namespace RandomEngine::Systems::ResourceSystems
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
             if (auto *master_ptr = objects.GetPtr(id))
             {
-                if (dynamic_cast<U *>(master_ptr->Get()) != nullptr)
+                if (Core::Cast::ReCast<U *>(master_ptr->Get()) != nullptr)
                 {
                     return Core::Memory::ObserverPtr<U>(*master_ptr);
                 }
@@ -122,9 +123,9 @@ namespace RandomEngine::Systems::ResourceSystems
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
             return objects.GetAll() | std::views::filter([](const auto &ptr)
-                                                         { return ptr && dynamic_cast<U *>(ptr.Get()) != nullptr; }) |
+                                                         { return ptr && Core::Cast::ReCast<U *>(ptr.Get()) != nullptr; }) |
                    std::views::transform([](const auto &ptr) -> U &
-                                         { return *dynamic_cast<U *>(ptr.Get()); });
+                                         { return *Core::Cast::ReCast<U *>(ptr.Get()); });
         }
 
         template <typename U>
@@ -138,7 +139,7 @@ namespace RandomEngine::Systems::ResourceSystems
 
             for (const auto &ptr : raw_span)
             {
-                if (ptr && dynamic_cast<U *>(ptr.Get()) != nullptr)
+                if (ptr && Core::Cast::ReCast<U *>(ptr.Get()) != nullptr)
                 {
                     result.emplace_back(ptr);
                 }
@@ -164,9 +165,9 @@ namespace RandomEngine::Systems::ResourceSystems
             auto datas = objects.GetAll();
 
             return std::views::iota(size_t(0), objects.Size()) | std::views::filter([datas](size_t i)
-                                                                                    { return datas[i] && dynamic_cast<U *>(datas[i].Get()) != nullptr; }) |
+                                                                                    { return datas[i] && Core::Cast::ReCast<U *>(datas[i].Get()) != nullptr; }) |
                    std::views::transform([ids, datas](size_t i) -> std::pair<Core::Config::ObjectIDType, U &>
-                                         { return {ids[i], *dynamic_cast<U *>(datas[i].Get())}; });
+                                         { return {ids[i], *Core::Cast::ReCast<U *>(datas[i].Get())}; });
         }
 
         [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> GetAllObserverWithID() const
@@ -198,7 +199,7 @@ namespace RandomEngine::Systems::ResourceSystems
             result.reserve(datas.size());
             for (size_t i = 0; i < datas.size(); ++i)
             {
-                if (datas[i] && dynamic_cast<U *>(datas[i].Get()) != nullptr)
+                if (datas[i] && Core::Cast::ReCast<U *>(datas[i].Get()) != nullptr)
                 {
                     result.emplace_back(ids[i], Core::Memory::ObserverPtr<U>(datas[i]));
                 }

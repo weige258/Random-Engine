@@ -10,9 +10,9 @@ class RuntimeSystem:Systems::ISystem
 {
 private:
     LogicUpdateSystem logic_update_system;
-    FixUpdateSystem fix_update_system;
 
 public:
+    FixUpdateSystem fix_update_system;
 
     void Init(System& system);
 
@@ -22,4 +22,3 @@ public:
 };
 
 }
-

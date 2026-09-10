@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <chrono>
 #include "CPUArchitecture.hpp"
 #include "CPUVendor.hpp"
 #include <string>
@@ -13,8 +14,8 @@ namespace RandomEngine::Platform::CPU
         CPUVendor vendor = CPUVendor::Unknown;
         CPUArchitecture architecture = CPUArchitecture::Unknown;
 
-        std::string vendor_id;    // 原生识别符 (如 "GenuineIntel")
-        std::string brand_string; // CPU 型号名称 (如 "13th Gen Intel(R) Core(TM) i9-13900K")
+        std::string vendor_id;
+        std::string brand_string;
 
         uint32_t logical_processor_count = 0;
         uint32_t physical_core_count = 0;
@@ -24,7 +25,6 @@ namespace RandomEngine::Platform::CPU
         uint32_t l2_cache_size = 0;
         uint32_t l3_cache_size = 0;
 
-        // 指令集特性
         bool has_sse2 = false;
         bool has_sse3 = false;
         bool has_sse41 = false;
@@ -35,8 +35,15 @@ namespace RandomEngine::Platform::CPU
         bool has_avx512 = false;
         bool has_neon = false;
 
-        float total_usage_percentage = 0.0f;        
-        std::vector<float> core_usage_percentages;  
+        float total_usage_percentage = 0.0f;
+        float system_usage_percentage = 0.0f;
+        std::vector<float> core_usage_percentages;
+
+        uint64_t m_window_start_proc = 0;
+        uint64_t m_window_start_system_idle = 0;
+        uint64_t m_window_start_system_total = 0;
+        std::chrono::steady_clock::time_point m_window_start_wall{};
+        bool m_runtime_initialized = false;
 
         void DetectAll();
 

@@ -1,6 +1,7 @@
 #include "CPUSystem.hpp"
 
 namespace RandomEngine::Systems::DeviceSystems{
+
     void CPUSystem::Init(){
         cpu_info = {};
         cpu_info.DetectAll();
@@ -14,7 +15,11 @@ namespace RandomEngine::Systems::DeviceSystems{
         cpu_info = {};
     }
 
-    Platform::CPU::CPUInfo CPUSystem::GetCPUInfo(){
+    const Platform::CPU::CPUInfo& CPUSystem::GetCPUInfo() const{
+        return cpu_info;
+    }
+
+    Platform::CPU::CPUInfo& CPUSystem::GetCPUInfo(){
         return cpu_info;
     }
 }
