@@ -149,6 +149,11 @@ RSIMD_FORCEINLINE auto BroadcastLanef(float32x4_t a, int lane) {
 RSIMD_FORCEINLINE auto ConvertToFloatf(int32x4_t a) { return vcvtq_f32_s32(a); }
 RSIMD_FORCEINLINE auto ConvertToIntf(float32x4_t a) { return vcvtq_s32_f32(a); }
 
+RSIMD_FORCEINLINE auto CvtPs2Pd(float32x4_t a) {
+    return vcombine_f64(vcvt_f64_f32(vget_low_f32(a)), vcvt_f64_f32(vget_high_f32(a)));
+}
+RSIMD_FORCEINLINE auto CvtPd2Ps(float64x2_t a) { return vcvtq_f32_f64(a); }
+
 // =========================================================================
 // double 实现 (NEON - AArch64, 2-wide)
 // =========================================================================
@@ -555,6 +560,12 @@ template <typename T> RSIMD_FORCEINLINE auto ConvertToInt(auto a) {
     if constexpr (std::is_same_v<T, float>) return ConvertToIntf(a);
     else if constexpr (std::is_same_v<T, double>) return ConvertToIntd(a);
     else if constexpr (std::is_same_v<T, int32_t>) return ConvertToInti(a);
+}
+
+template <typename From, typename To> RSIMD_FORCEINLINE auto Convert(auto a) {
+    if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) return CvtPs2Pd(a);
+    else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) return CvtPd2Ps(a);
+    else return a;
 }
 
 #endif

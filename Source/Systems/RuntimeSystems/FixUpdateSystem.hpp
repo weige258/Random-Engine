@@ -2,13 +2,14 @@
 
 #include "Core/Jobs/JobExecutor/FixUpdateJobExecutor.hpp"
 #include "Core/Behaviors/BaseBehavior/IFixUpdateBehavior.hpp"
+#include "Core/Config.hpp"
 #include "Systems/ISystem.hpp"
 
 
 namespace RandomEngine::Systems::RuntimeSystems{
     class FixUpdateSystem : public ISystem{
         private:
-            float fixed_delta_time=1.0f/30.0f;
+            RandomEngine::Core::Config::TimeType fixed_delta_time = RandomEngine::Core::Config::TimeType(1)/RandomEngine::Core::Config::TimeType(30);
             Core::Jobs::JobExecutor::FixUpdateJobExecutor fix_update_job_executor;
             std::chrono::steady_clock::time_point m_last_cpu_sample;
 

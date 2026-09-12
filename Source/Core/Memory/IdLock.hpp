@@ -23,9 +23,12 @@ inline void CpuPause() noexcept {
 }
 
 struct alignas(64) IdLock {
+    private:
+    
     uint32_t m_owner = 0;
     uint32_t m_depth = 0;
 
+    public:
     void Lock(uint32_t token) noexcept {
         std::atomic_ref<uint32_t> owner(m_owner);
 

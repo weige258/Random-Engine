@@ -13,7 +13,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
     
     using FixUpdateBehaviorJob = Core::Jobs::Job::BaseJob<
         &Behaviors::IFixUpdateBehavior::FixUpdate,
-        float,
+        Config::TimeType,
         ::RandomEngine::Systems::System&>;
 
     /**
@@ -32,7 +32,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
     private:
         // ---- 跨线程配置（Executor 写 / Worker 读，必须原子） ----
         std::atomic<::RandomEngine::Systems::System *> m_system{nullptr};
-        std::atomic<float> m_fixed_dt{1.0f / 60.0f}; // 固定步长（秒），默认 60Hz
+        std::atomic<Config::TimeType> m_fixed_dt{Config::TimeType{1} / 60}; // 固定步长（秒），默认 60Hz
 
         // ---- 步数同步（Executor 发布 / Worker 追赶） ----
         std::atomic<int64_t> *m_step_target_ptr = nullptr; // 指向 Executor 的全局步号
@@ -49,9 +49,9 @@ namespace RandomEngine::Core::Jobs::JobWorker
             m_system.store(&system, std::memory_order_release);
         }
 
-        void SetFixedTimestep(float fixed_dt)
+        void SetFixedTimestep(Config::TimeType fixed_dt)
         {
-            m_fixed_dt.store(fixed_dt > 0.0f ? fixed_dt : (1.0f / 60.0f),
+            m_fixed_dt.store(fixed_dt > Config::TimeType{0} ? fixed_dt : (Config::TimeType{1} / 60),
                              std::memory_order_relaxed);
         }
 
@@ -86,7 +86,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
             const int64_t target   = m_step_target_ptr
                                          ? m_step_target_ptr->load(std::memory_order_acquire)
                                          : m_done_step.load(std::memory_order_relaxed);
-            const float   fixed_dt = m_fixed_dt.load(std::memory_order_relaxed);
+            const Config::TimeType fixed_dt = m_fixed_dt.load(std::memory_order_relaxed);
 
             // 2. 追赶至 target：空 Worker 直接跳步，有任务的 Worker 逐步执行
             if (m_local_cache.empty())
@@ -112,7 +112,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
             std::this_thread::sleep_for(std::chrono::microseconds(200));
         }
 
-        void ExecuteJob(FixUpdateBehaviorJob &job, float fixed_dt)
+        void ExecuteJob(FixUpdateBehaviorJob &job, Config::TimeType fixed_dt)
         {
             ::RandomEngine::Systems::System *sys = m_system.load(std::memory_order_acquire);
             if (sys && job)

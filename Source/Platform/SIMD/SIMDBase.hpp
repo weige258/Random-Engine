@@ -255,6 +255,7 @@ namespace RandomEngine::Platform::SIMD
     // --- 类型转换 ---
     template <typename T> RSIMD_FORCEINLINE auto ConvertToFloat(auto a);
     template <typename T> RSIMD_FORCEINLINE auto ConvertToInt(auto a);
+    template <typename From, typename To> RSIMD_FORCEINLINE auto Convert(auto a);
 
     // =========================================================================
     // 便捷类型别名

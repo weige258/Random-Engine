@@ -12,7 +12,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                fix_update_job_executor.RemoveJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::IFixUpdateBehavior::FixUpdate, float, Systems::System &>(task));
+                fix_update_job_executor.RemoveJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::IFixUpdateBehavior::FixUpdate, RandomEngine::Core::Config::TimeType, Systems::System &>(task));
             }
         }
 
@@ -20,7 +20,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                fix_update_job_executor.PushJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::IFixUpdateBehavior::FixUpdate, float, Systems::System &>(task));
+                fix_update_job_executor.PushJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::IFixUpdateBehavior::FixUpdate, RandomEngine::Core::Config::TimeType, Systems::System &>(task));
             }
         }
     }
@@ -31,7 +31,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         fix_update_job_executor.SetSystem(system);
         fix_update_job_executor.SetFixedTimestep(fixed_delta_time);
         fix_update_job_executor.SetMaxSteps(5);
-        fix_update_job_executor.Start(system.device_system.cpu_system.GetCPUInfo().logical_processor_count / 6);
+        fix_update_job_executor.Start(system.device_system.cpu_system.GetCPUInfo().logical_processor_count/6 );
     }
 
     void FixUpdateSystem::Run(System &system)

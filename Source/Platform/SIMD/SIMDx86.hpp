@@ -133,6 +133,9 @@ RSIMD_FORCEINLINE float HMaxf(__m256 vec) {
 RSIMD_FORCEINLINE auto ConvertToFloatf(__m256i a) { return _mm256_cvtepi32_ps(a); }
 RSIMD_FORCEINLINE auto ConvertToIntf(__m256 a) { return _mm256_cvtps_epi32(a); }
 
+RSIMD_FORCEINLINE auto CvtPs2Pd(__m128 a) { return _mm256_cvtps2_pd(a); }
+RSIMD_FORCEINLINE auto CvtPd2Ps(__m256d a) { return _mm256_cvtpd2_ps(a); }
+
 #elif defined(RSIMD_SSE2)
 
 RSIMD_FORCEINLINE auto Loadf(const float* ptr) { return _mm_load_ps(ptr); }
@@ -258,6 +261,9 @@ RSIMD_FORCEINLINE float HMaxf(__m128 vec) {
 
 RSIMD_FORCEINLINE auto ConvertToFloatf(__m128i a) { return _mm_cvtepi32_ps(a); }
 RSIMD_FORCEINLINE auto ConvertToIntf(__m128 a) { return _mm_cvtps_epi32(a); }
+
+RSIMD_FORCEINLINE auto CvtPs2Pd(__m128 a) { return _mm_cvtps_pd(a); }
+RSIMD_FORCEINLINE auto CvtPd2Ps(__m128d a) { return _mm_cvtpd_ps(a); }
 
 #endif
 
@@ -942,6 +948,13 @@ template <typename T> RSIMD_FORCEINLINE auto ConvertToInt(auto a) {
     if constexpr (std::is_same_v<T, float>) return ConvertToIntf(a);
     else if constexpr (std::is_same_v<T, double>) return ConvertToIntd(a);
     else if constexpr (std::is_same_v<T, int32_t>) return ConvertToInti(a);
+}
+
+// --- 浮点类型间转换 ---
+template <typename From, typename To> RSIMD_FORCEINLINE auto Convert(auto a) {
+    if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) return CvtPs2Pd(a);
+    else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) return CvtPd2Ps(a);
+    else return a;
 }
 
 } // namespace RandomEngine::Platform::SIMD

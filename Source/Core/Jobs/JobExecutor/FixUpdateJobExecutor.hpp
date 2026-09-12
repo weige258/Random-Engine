@@ -70,9 +70,16 @@ namespace RandomEngine::Core::Jobs::JobExecutor
         {
             const auto now = std::chrono::steady_clock::now();
 
-            // ---- 卡顿保护：lag 异常大时可能是系统卡顿虚高，不视为真实压力 ----
-            const bool maybe_stall = (max_lag > 1000);
-            const bool pressure = (max_lag >= kLagDepth) && !maybe_stall;
+            if (max_lag > 1000)
+            {
+                consecutive_high = 0;
+                consecutive_low  = 0;
+                idle_since       = {};
+                prev_max_lag     = max_lag;
+                return 0;
+            }
+
+            const bool pressure = (max_lag >= kLagDepth);
 
             // ---- AIMD 反弹：裁后 5s 内 lag 重现 → 撤裁 + 冷却翻倍 ----
             if (shrink_pending && pressure)
@@ -124,8 +131,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                     return 0;
                 }
 
-                // P 项：误差分级（卡顿虚高时保守 +1）
-                int expand_n = (max_lag > 5 && !maybe_stall) ? 2 : 1;
+                int expand_n = (max_lag > 5) ? 2 : 1;
                 last_action_time = now;
                 consecutive_high = 0;
                 return std::min<int>(expand_n, static_cast<int>(upper - cur));
@@ -216,7 +222,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
         ::RandomEngine::Systems::System *m_system = nullptr;
 
         // ---- 固定步长全局配置（Stepper 读 / 用户线程写，原子） ----
-        std::atomic<float> m_fixed_dt{1.0f / 60.0f};
+        std::atomic<Config::TimeType> m_fixed_dt{Config::TimeType{1} / 60};
         std::atomic<int>   m_max_steps{5};
 
         // ---- Stepper：统一计量真实时间，发布全局步号 ----
@@ -273,9 +279,9 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         // ---------------- 固定步长配置（下发到所有 Worker） ----------------
 
-        void SetFixedTimestep(float fixed_dt)
+        void SetFixedTimestep(Config::TimeType fixed_dt)
         {
-            const float new_dt = fixed_dt > 0.0f ? fixed_dt : (1.0f / 60.0f);
+            const Config::TimeType new_dt = fixed_dt > Config::TimeType{0} ? fixed_dt : (Config::TimeType{1} / 60);
             m_fixed_dt.store(new_dt, std::memory_order_release);
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);
             for (auto &w : m_workers)
@@ -441,7 +447,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             if (hw_physical == 0 || hw_physical > hw_logical)
                 hw_physical = (hw_logical > 1) ? hw_logical / 2 : 1;
 
-            const size_t lower = m_baseline.load(std::memory_order_relaxed);
+            const size_t lower = std::max<size_t>(m_baseline.load(std::memory_order_relaxed) / 2, 1);
 
             constexpr size_t kSmtAllowance = 2;
             const size_t hw_cap = std::min(hw_logical, hw_physical + kSmtAllowance);
@@ -637,17 +643,17 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         void StepperLoop()
         {
-            float accumulator = 0.0f;
+            Config::TimeType accumulator = Config::TimeType{0};
 
             while (!m_stepper_stop.load(std::memory_order_relaxed))
             {
-                const float real_dt   = m_stepper_timer.GetDeltaTime();
-                const float fixed_dt  = m_fixed_dt.load(std::memory_order_acquire);
+                const Config::TimeType real_dt   = m_stepper_timer.GetDeltaTime();
+                const Config::TimeType fixed_dt  = m_fixed_dt.load(std::memory_order_acquire);
                 const int   max_steps = m_max_steps.load(std::memory_order_acquire);
 
                 accumulator += real_dt;
 
-                const float max_accum = static_cast<float>(max_steps) * fixed_dt;
+                const Config::TimeType max_accum = static_cast<Config::TimeType>(max_steps) * fixed_dt;
                 if (accumulator > max_accum)
                     accumulator = max_accum;
 

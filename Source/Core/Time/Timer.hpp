@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <atomic>
+#include "Config.hpp"
 
 namespace RandomEngine::Core::Time
 {
@@ -15,7 +16,7 @@ namespace RandomEngine::Core::Time
         std::atomic<int64_t> m_last_check_ns{0};
         std::atomic<int64_t> m_paused_accum_ns{0};
         std::atomic<int64_t> m_pause_start_ns{0};
-        std::atomic<float> m_time_scale{1.0f};
+        std::atomic<Config::TimeType> m_time_scale{1.0};
         std::atomic<bool> m_is_running{false};
 
     public:
@@ -54,23 +55,23 @@ namespace RandomEngine::Core::Time
             }
         }
 
-        float GetDeltaTime()
+        Config::TimeType GetDeltaTime()
         {
             if (!m_is_running.load(std::memory_order_relaxed))
-                return 0.0f;
+                return Config::TimeType{0};
 
             int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now().time_since_epoch()).count();
             // 原子替换：获取上次采样时间并将 last_check 置为当前时间
             int64_t last = m_last_check_ns.exchange(now, std::memory_order_relaxed);
 
-            double dt_sec = static_cast<double>(now - last) * 1e-9;
-            return static_cast<float>(dt_sec) * m_time_scale.load(std::memory_order_relaxed);
+            Config::TimeType dt_sec = static_cast<Config::TimeType>(now - last) * 1e-9;
+            return dt_sec * m_time_scale.load(std::memory_order_relaxed);
         }
 
-        float GetElapsedTime() const
+        Config::TimeType GetElapsedTime() const
         {
             if (m_start_time_ns.load(std::memory_order_relaxed) == 0)
-                return 0.0f;
+                return Config::TimeType{0};
 
             bool running = m_is_running.load(std::memory_order_relaxed);
             int64_t now = running ? std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now().time_since_epoch()).count()
@@ -78,11 +79,11 @@ namespace RandomEngine::Core::Time
             int64_t start = m_start_time_ns.load(std::memory_order_relaxed);
             int64_t paused = m_paused_accum_ns.load(std::memory_order_relaxed);
 
-            double total_sec = static_cast<double>(now - start - paused) * 1e-9;
-            return static_cast<float>(total_sec) * m_time_scale.load(std::memory_order_relaxed);
+            Config::TimeType total_sec = static_cast<Config::TimeType>(now - start - paused) * 1e-9;
+            return total_sec * m_time_scale.load(std::memory_order_relaxed);
         }
 
-        void SetTimeScale(float scale)
+        void SetTimeScale(Config::TimeType scale)
         {
             m_time_scale.store(scale, std::memory_order_relaxed);
         }

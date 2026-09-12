@@ -1,8 +1,7 @@
 #pragma once
 #include "BaseBehavior.hpp"
-#include "BindBaseBehavoir.hpp"
-#include "Core/Memory/MasterPtr.hpp"
-#include <vector>
+#include "BindBaseBehavior.hpp"
+
 
 namespace RandomEngine::Core::Behaviors
 {

@@ -9,7 +9,7 @@ namespace RandomEngine::Systems { struct System; }
 namespace RandomEngine::Core::Jobs::JobWorker
 {
     using LogicBehaviorJob = Core::Jobs::Job::BaseJob<&Behaviors::ILogicUpdateBehavior::LogicUpdate,
-                                                      float,
+                                                      Config::TimeType,
                                                       ::RandomEngine::Systems::System &>;
 
     class LogicBehaviorJobWorker : public LoopJobWorker<LogicBehaviorJob>
@@ -17,7 +17,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
     private:
         ::RandomEngine::Systems::System *m_system = nullptr;
         Core::Time::Timer m_timer;
-        float m_dt = 0.0f;
+        Config::TimeType m_dt = Config::TimeType{0};
 
     public:
         LogicBehaviorJobWorker() = default;

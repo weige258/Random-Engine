@@ -5,7 +5,7 @@
 namespace RandomEngine::Engine
 {
 
-    class EngineMain
+    class Application
     {
 
     private:

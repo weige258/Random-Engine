@@ -1,8 +1,9 @@
-#include "EngineMain.hpp"
+#include "Application.hpp"
 #include "Core/Objects/BaseObject/BaseObject.hpp"
-#include "Core/Behaviors/BaseBehavior/BindBaseBehavoir.hpp"
+#include "Core/Behaviors/BaseBehavior/BindBaseBehavior.hpp"
 #include "Core/Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 #include "Core/Behaviors/BaseBehavior/IFixUpdateBehavior.hpp"
+#include "Core/Config.hpp"
 #include "Core/Jobs/Job/BaseJob.hpp"
 #include "Core/Math/Math.hpp"
 #include "Core/Memory/MasterPtr.hpp"
@@ -22,18 +23,18 @@ using namespace RandomEngine::Core::Math;
 
 struct EntityData
 {
-    Vec3f position;
-    Vec3f velocity;
-    Vec3f acceleration;
-    Vec3f force;
+    Vec3d position;
+    Vec3d velocity;
+    Vec3d acceleration;
+    Vec3d force;
     float mass;
     float radius;
     float restitution;
     float drag;
-    Vec3f angular_velocity;
-    Vec3f torque;
+    Vec3d angular_velocity;
+    Vec3d torque;
     float moment_of_inertia;
-    Vec3f gravity;
+    Vec3d gravity;
     float max_speed;
 };
 
@@ -55,7 +56,7 @@ static PerfCounters g_counters;
 
 struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         data->velocity += data->acceleration * delta_time;
@@ -73,7 +74,7 @@ struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         Vec3f neighbor_offset(data->position[1] * 0.3f - data->position[0] * 0.1f,
@@ -102,7 +103,7 @@ struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct BounceBehavior : BindBaseBehavior, IFixUpdateBehavior
 {
-    void FixUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void FixUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         constexpr float floor_y = -50.0f;
@@ -125,7 +126,7 @@ struct BounceBehavior : BindBaseBehavior, IFixUpdateBehavior
 
 struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         float speed = std::sqrt(LengthSquared(data->velocity));
@@ -140,7 +141,7 @@ struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct GravityBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         data->force += data->gravity * data->mass;
@@ -150,7 +151,7 @@ struct GravityBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         float angular_speed = std::sqrt(LengthSquared(data->angular_velocity));
@@ -167,7 +168,7 @@ struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct BoundaryBehavior : BindBaseBehavior, IFixUpdateBehavior
 {
-    void FixUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void FixUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         constexpr float bound = 100.0f;
@@ -191,7 +192,7 @@ struct BoundaryBehavior : BindBaseBehavior, IFixUpdateBehavior
 
 struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         Vec3f spring_anchor(0.0f, 0.0f, 0.0f);
@@ -208,7 +209,7 @@ struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         Vec3f neighbor_pos(data->position[1] * 0.5f + 10.0f,
@@ -229,7 +230,7 @@ struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
 
 struct DampingBehavior : BindBaseBehavior, ILogicUpdateBehavior
 {
-    void LogicUpdate(float delta_time, RandomEngine::Systems::System &system) override
+    void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
         data->force -= data->velocity * 0.8f;
@@ -255,10 +256,10 @@ struct TestEntity : BaseObject, EntityData
 
 int main()
 {
-    RandomEngine::Engine::EngineMain app;
+    RandomEngine::Engine::Application app;
     app.Init();
 
-    constexpr int NUM_ENTITIES = 100000;
+    constexpr int NUM_ENTITIES = 10000;
     std::printf("Creating %d entities with 10 behaviors each...\n", NUM_ENTITIES);
 
     for (int i = 0; i < NUM_ENTITIES; ++i)

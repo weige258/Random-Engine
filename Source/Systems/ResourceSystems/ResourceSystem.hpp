@@ -1,7 +1,7 @@
 #pragma once
 #include "ObjectSystem.hpp"
 #include "BehaviorSystem.hpp"
-#include "Behaviors/BaseBehavior/BindBaseBehavoir.hpp"
+#include "Behaviors/BaseBehavior/BindBaseBehavior.hpp"
 #include "Systems/ISystem.hpp"
 
 

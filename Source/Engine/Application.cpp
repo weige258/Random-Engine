@@ -1,4 +1,4 @@
-#include "EngineMain.hpp"
+#include "Application.hpp"
 #include "Systems/System.hpp"
 #include "Core/Time/Timer.hpp"
 #include <iostream>
@@ -7,13 +7,13 @@
 namespace RandomEngine::Engine
 {
         
-        void EngineMain::Init()
+        void Application::Init()
         {
                 system = RandomEngine::Core::Memory::MasterPtr<RandomEngine::Systems::System>(new RandomEngine::Systems::System());
                 this->system->Init(*system.Get());
         }
 
-        void EngineMain::Run()
+        void Application::Run()
         {
                 while (is_running)
                 {
@@ -21,7 +21,7 @@ namespace RandomEngine::Engine
                 }
         }
 
-        void EngineMain::Destroy()
+        void Application::Destroy()
         {
                 this->system->Destroy();
         }

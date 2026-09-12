@@ -13,7 +13,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                logic_update_job_executor.RemoveJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
+                logic_update_job_executor.RemoveJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,RandomEngine::Core::Config::TimeType,Systems::System&>(task));
             }
         }
 
@@ -21,7 +21,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         {
             if (task)
             {
-                logic_update_job_executor.PushJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,float,Systems::System&>(task));
+                logic_update_job_executor.PushJob(Core::Jobs::Job::BaseJob<&Core::Behaviors::ILogicUpdateBehavior::LogicUpdate,RandomEngine::Core::Config::TimeType,Systems::System&>(task));
             }
         }
     }

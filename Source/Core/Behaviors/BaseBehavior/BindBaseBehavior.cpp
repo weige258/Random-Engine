@@ -1,4 +1,4 @@
-#include "BindBaseBehavoir.hpp"
+#include "BindBaseBehavior.hpp"
 
 namespace RandomEngine::Core::Behaviors{
 
