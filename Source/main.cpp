@@ -67,7 +67,7 @@ struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
         }
         data->position += data->velocity * delta_time;
         data->acceleration = data->force / data->mass;
-        data->force = Vec3f(0.0f, 0.0f, 0.0f);
+        data->force = Vec3d(0.0f, 0.0f, 0.0f);
         g_counters.movement.fetch_add(1, std::memory_order_relaxed);
     }
 };
@@ -85,10 +85,10 @@ struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
         if (dist_sq < min_dist * min_dist && dist_sq > 1e-8f)
         {
             float dist = std::sqrt(dist_sq);
-            Vec3f normal = neighbor_offset / dist;
+            Vec3d normal = neighbor_offset / dist;
             float overlap = min_dist - dist;
             data->force += normal * (overlap * 500.0f);
-            Vec3f rel_vel = data->velocity;
+            Vec3d rel_vel = data->velocity;
             float vel_along_normal = Dot(rel_vel, normal);
             if (vel_along_normal < 0.0f)
             {
@@ -132,7 +132,7 @@ struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
         float speed = std::sqrt(LengthSquared(data->velocity));
         if (speed > 1e-6f)
         {
-            Vec3f drag_force = Normalize(data->velocity) * (-data->drag * speed * speed);
+            Vec3d drag_force = Normalize(data->velocity) * (-data->drag * speed * speed);
             data->force += drag_force;
         }
         g_counters.drag.fetch_add(1, std::memory_order_relaxed);
@@ -157,11 +157,11 @@ struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
         float angular_speed = std::sqrt(LengthSquared(data->angular_velocity));
         if (angular_speed > 1e-8f)
         {
-            Vec3f angular_drag = Normalize(data->angular_velocity) * (-0.5f * angular_speed);
+            Vec3d angular_drag = Normalize(data->angular_velocity) * (-0.5f * angular_speed);
             data->torque += angular_drag;
         }
         data->angular_velocity += (data->torque / data->moment_of_inertia) * delta_time;
-        data->torque = Vec3f(0.0f, 0.0f, 0.0f);
+        data->torque = Vec3d(0.0f, 0.0f, 0.0f);
         g_counters.rotation.fetch_add(1, std::memory_order_relaxed);
     }
 };
@@ -195,12 +195,12 @@ struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
-        Vec3f spring_anchor(0.0f, 0.0f, 0.0f);
-        Vec3f displacement = data->position - spring_anchor;
+        Vec3d spring_anchor(0.0f, 0.0f, 0.0f);
+        Vec3d displacement = data->position - spring_anchor;
         float dist = std::sqrt(LengthSquared(displacement));
         if (dist > 1e-6f)
         {
-            Vec3f spring_force = Normalize(displacement) * (-2.0f * dist);
+            Vec3d spring_force = Normalize(displacement) * (-2.0f * dist);
             data->force += spring_force;
         }
         g_counters.force_accum.fetch_add(1, std::memory_order_relaxed);
@@ -212,16 +212,16 @@ struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_id);
-        Vec3f neighbor_pos(data->position[1] * 0.5f + 10.0f,
+        Vec3d neighbor_pos(data->position[1] * 0.5f + 10.0f,
                            data->position[2] * 0.3f - 5.0f,
                            data->position[0] * 0.4f + 8.0f);
-        Vec3f diff = neighbor_pos - data->position;
+        Vec3d diff = neighbor_pos - data->position;
         float rest_length = 5.0f;
         float current_length = std::sqrt(LengthSquared(diff));
         if (current_length > 1e-6f)
         {
             float stretch = current_length - rest_length;
-            Vec3f spring_f = Normalize(diff) * (3.0f * stretch);
+            Vec3d spring_f = Normalize(diff) * (3.0f * stretch);
             data->force += spring_f;
         }
         g_counters.spring.fetch_add(1, std::memory_order_relaxed);
@@ -259,7 +259,7 @@ int main()
     RandomEngine::Engine::Application app;
     app.Init();
 
-    constexpr int NUM_ENTITIES = 10000;
+    constexpr int NUM_ENTITIES = 100000;
     std::printf("Creating %d entities with 10 behaviors each...\n", NUM_ENTITIES);
 
     for (int i = 0; i < NUM_ENTITIES; ++i)

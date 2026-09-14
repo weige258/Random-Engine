@@ -3,11 +3,11 @@
 #include <cassert>
 #include <stdexcept>
 #include <span>
+#include <type_traits>
 
 namespace RandomEngine::Core::Containers
 {
 
-    // 稀疏集
     template <typename DataType, typename IndexType = uint64_t>
     struct SparseSet
     {
@@ -16,13 +16,13 @@ namespace RandomEngine::Core::Containers
 
         static constexpr IndexType null_index = static_cast<IndexType>(-1);
 
-        std::vector<IndexType> sparse;        // ID -> dense 下标 (空闲时作为 next_free_id)
-        std::vector<IndexType> dense_indices; // dense 下标 -> ID (Swap-and-Pop 映射)
-        std::vector<DataType> dense_data;     // 纯粹连续的 DataType 内存块
-        IndexType first_free{null_index};     // 空闲链表头节点
+        std::vector<IndexType> sparse;          // ID -> dense 下标 (空闲时为 null_index)
+        std::vector<IndexType> dense_indices;   // dense 下标 -> ID (Swap-and-Pop 映射)
+        std::vector<DataType> dense_data;       // 纯粹连续的 DataType 内存块
+        std::vector<IndexType> free_ids;        // 稠密：连续存放空闲 ID (Swap-and-Pop)
+        std::vector<IndexType> free_reverse;    // 稀疏：free_reverse[id] = id 在 free_ids 中的下标，null_index 表示不在空闲集
 
     public:
-        // 构造析构
         SparseSet() = default;
 
         explicit SparseSet(IndexType init_size)
@@ -34,116 +34,190 @@ namespace RandomEngine::Core::Containers
 
             size_t cap = static_cast<size_t>(init_size);
 
-            // 仅分配物理内存，不改变逻辑大小（size() 依然为 0）
             sparse.reserve(cap);
             dense_indices.reserve(cap);
             dense_data.reserve(cap);
+            free_ids.reserve(cap);
+            free_reverse.reserve(cap);
         }
 
-        // id分配 查询
+        void Reserve(size_t n)
+        {
+            sparse.reserve(n);
+            dense_indices.reserve(n);
+            dense_data.reserve(n);
+            free_ids.reserve(n);
+            free_reverse.reserve(n);
+        }
+
         IndexType AllocateID()
         {
-            if (first_free != null_index)
+            if (!free_ids.empty())
             {
-                IndexType id = first_free;
-                first_free = sparse[static_cast<size_t>(id)];
-                sparse[static_cast<size_t>(id)] = null_index; // 重置为干净状态
+                IndexType id = free_ids.back();
+                free_reverse[static_cast<size_t>(id)] = null_index;
+                free_ids.pop_back();
+                sparse[static_cast<size_t>(id)] = null_index;
                 return id;
             }
+            assert(sparse.size() < static_cast<size_t>(null_index) && "Index overflow!");
             IndexType id = static_cast<IndexType>(sparse.size());
             sparse.push_back(null_index);
+            free_reverse.push_back(null_index);
             return id;
         }
 
         [[nodiscard]] bool Contains(IndexType id) const noexcept
         {
-            if (id >= sparse.size())
-                return false;
-
-            IndexType d_idx = sparse[static_cast<size_t>(id)];
-            if (d_idx == null_index)
-                return false;
-
-            size_t u_d_idx = static_cast<size_t>(d_idx);
-            return u_d_idx < dense_indices.size() && dense_indices[u_d_idx] == id;
+            return Probe(sparse, dense_indices, dense_data, id) != nullptr;
         }
 
-        // 插入
+        [[nodiscard]] bool IsFree(IndexType id) const noexcept
+        {
+            if constexpr (std::is_signed_v<IndexType>)
+            {
+                if (id < 0) return false;
+            }
+            size_t u = static_cast<size_t>(id);
+            return u < free_reverse.size() && free_reverse[u] != null_index;
+        }
+
         void Insert(IndexType id, const DataType &data)
         {
-            if (id == null_index) {
+            if (id == null_index) [[unlikely]]
                 throw std::invalid_argument("Reserved null_index cannot be used as a valid ID!");
-            }
 
-            // 结合 TryGetImpl 一次寻址，若存在直接覆盖更新
-            if (auto *ptr = TryGetImpl(id)) {
+            if (auto *ptr = TryGetImpl(id))
+            {
                 *ptr = data;
                 return;
             }
 
             size_t u_id = static_cast<size_t>(id);
 
-            if (u_id >= sparse.size()) {
+            bool was_free = false;
+            if (u_id >= sparse.size())
+            {
                 sparse.resize(u_id + 1, null_index);
-            } else {
-                UnlinkFromFreeList(id); // ✅ 无条件安全解链
+                free_reverse.resize(u_id + 1, null_index);
+            }
+            else
+            {
+                was_free = IsFree(id);
             }
 
             dense_data.push_back(data);
-            dense_indices.push_back(id);
+            try
+            {
+                dense_indices.push_back(id);
+            }
+            catch (...)
+            {
+                dense_data.pop_back();
+                throw;
+            }
+            if (was_free) RemoveFromFreeSet(id);
             sparse[u_id] = static_cast<IndexType>(dense_data.size() - 1);
         }
 
         void Insert(IndexType id, DataType &&data)
         {
-            if (id == null_index) {
+            if (id == null_index) [[unlikely]]
                 throw std::invalid_argument("Reserved null_index cannot be used as a valid ID!");
-            }
 
-            // 结合 TryGetImpl 一次寻址，若存在直接移动覆盖
-            if (auto *ptr = TryGetImpl(id)) {
+            if (auto *ptr = TryGetImpl(id))
+            {
                 *ptr = std::move(data);
                 return;
             }
 
             size_t u_id = static_cast<size_t>(id);
 
-            if (u_id >= sparse.size()) {
+            bool was_free = false;
+            if (u_id >= sparse.size())
+            {
                 sparse.resize(u_id + 1, null_index);
-            } else {
-                UnlinkFromFreeList(id); // ✅ 无条件安全解链
+                free_reverse.resize(u_id + 1, null_index);
+            }
+            else
+            {
+                was_free = IsFree(id);
             }
 
             dense_data.push_back(std::move(data));
-            dense_indices.push_back(id);
+            try
+            {
+                dense_indices.push_back(id);
+            }
+            catch (...)
+            {
+                dense_data.pop_back();
+                throw;
+            }
+            if (was_free) RemoveFromFreeSet(id);
             sparse[u_id] = static_cast<IndexType>(dense_data.size() - 1);
         }
 
         IndexType Insert(const DataType &data)
         {
-            IndexType id = AllocateID(); // AllocateID 已将该 id 弹出空闲链表
-            size_t u_id = static_cast<size_t>(id);
+            IndexType id = AllocateID();
 
-            sparse[u_id] = static_cast<IndexType>(dense_data.size());
-            dense_indices.push_back(id);
-            dense_data.push_back(data);
+            try
+            {
+                dense_data.push_back(data);
+            }
+            catch (...)
+            {
+                free_ids.push_back(id);
+                free_reverse[static_cast<size_t>(id)] = static_cast<IndexType>(free_ids.size() - 1);
+                throw;
+            }
 
+            try
+            {
+                dense_indices.push_back(id);
+            }
+            catch (...)
+            {
+                dense_data.pop_back();
+                free_ids.push_back(id);
+                free_reverse[static_cast<size_t>(id)] = static_cast<IndexType>(free_ids.size() - 1);
+                throw;
+            }
+            sparse[static_cast<size_t>(id)] = static_cast<IndexType>(dense_data.size() - 1);
             return id;
         }
 
         IndexType Insert(DataType &&data)
         {
             IndexType id = AllocateID();
-            size_t u_id = static_cast<size_t>(id);
 
-            sparse[u_id] = static_cast<IndexType>(dense_data.size());
-            dense_indices.push_back(id);
-            dense_data.push_back(std::move(data));
+            try
+            {
+                dense_data.push_back(std::move(data));
+            }
+            catch (...)
+            {
+                free_ids.push_back(id);
+                free_reverse[static_cast<size_t>(id)] = static_cast<IndexType>(free_ids.size() - 1);
+                throw;
+            }
 
+            try
+            {
+                dense_indices.push_back(id);
+            }
+            catch (...)
+            {
+                dense_data.pop_back();
+                free_ids.push_back(id);
+                free_reverse[static_cast<size_t>(id)] = static_cast<IndexType>(free_ids.size() - 1);
+                throw;
+            }
+            sparse[static_cast<size_t>(id)] = static_cast<IndexType>(dense_data.size() - 1);
             return id;
         }
 
-        // 获取
         DataType &Get(IndexType id)
         {
             if (auto *ptr = TryGetImpl(id))
@@ -160,29 +234,41 @@ namespace RandomEngine::Core::Containers
 
         DataType *GetPtr(IndexType id) noexcept
         {
-            if (!Contains(id))
-                return nullptr;
-            return &dense_data[static_cast<size_t>(sparse[static_cast<size_t>(id)])];
+            return TryGetImpl(id);
         }
 
         const DataType *GetPtr(IndexType id) const noexcept
         {
-            if (!Contains(id))
-                return nullptr;
-            return &dense_data[static_cast<size_t>(sparse[static_cast<size_t>(id)])];
+            return TryGetImpl(id);
         }
 
-        std::vector<DataType> Get(const std::vector<IndexType> &ids)
+        std::vector<DataType> Get(const std::vector<IndexType> &ids) const
         {
             std::vector<DataType> result;
             result.reserve(ids.size());
             for (const auto &id : ids)
             {
-                if (Contains(id))
-                {
-                    result.push_back(dense_data[static_cast<size_t>(sparse[static_cast<size_t>(id)])]);
-                }
+                if (const auto *ptr = Probe(sparse, dense_indices, dense_data, id))
+                    result.push_back(*ptr);
             }
+            return result;
+        }
+
+        [[nodiscard]] std::vector<DataType *> GetPtrs(std::span<const IndexType> ids)
+        {
+            std::vector<DataType *> result;
+            result.reserve(ids.size());
+            for (auto id : ids)
+                result.push_back(TryGetImpl(id));
+            return result;
+        }
+
+        [[nodiscard]] std::vector<const DataType *> GetPtrs(std::span<const IndexType> ids) const
+        {
+            std::vector<const DataType *> result;
+            result.reserve(ids.size());
+            for (auto id : ids)
+                result.push_back(TryGetImpl(id));
             return result;
         }
 
@@ -220,7 +306,6 @@ namespace RandomEngine::Core::Containers
                 return result;
             }
 
-            // 获取 dense_data 的内存边界
             const DataType *start = dense_data.data();
             const DataType *end = start + dense_data.size();
 
@@ -228,13 +313,12 @@ namespace RandomEngine::Core::Containers
             {
                 const DataType *ptr = &item;
 
-                // 【Fast Path】O(1) 地址计算：检测对象地址是否属于 dense_data 堆空间
-                if (ptr >= start && ptr < end)
+                if (ptr >= start && ptr < end &&
+                    (reinterpret_cast<uintptr_t>(ptr) - reinterpret_cast<uintptr_t>(start)) % sizeof(DataType) == 0)
                 {
                     size_t dense_idx = static_cast<size_t>(ptr - start);
                     result.push_back(dense_indices[dense_idx]);
                 }
-                // 【Fallback Path】O(N) 值比对：对象是外部副本，进行遍历匹配
                 else
                 {
                     IndexType found_id = null_index;
@@ -261,11 +345,11 @@ namespace RandomEngine::Core::Containers
         std::vector<IndexType> GetIndices(const std::vector<const DataType *> &data_ptrs) const
         {
             std::vector<IndexType> result;
-            result.reserve(data_ptrs.size()); // 提前预分配，避免多次 realloc
+            result.reserve(data_ptrs.size());
 
             for (const auto *ptr : data_ptrs)
             {
-                result.push_back(GetIndex(ptr)); // 复用 O(1) 的指针偏移算术
+                result.push_back(GetIndex(ptr));
             }
 
             return result;
@@ -302,14 +386,12 @@ namespace RandomEngine::Core::Containers
             {
                 const DataType *ptr = &item;
 
-                // Fast Path: O(1) 地址区间与对齐校验
                 if (ptr >= start && ptr < end &&
                     (reinterpret_cast<uintptr_t>(ptr) - reinterpret_cast<uintptr_t>(start)) % sizeof(DataType) == 0)
                 {
                     size_t dense_idx = static_cast<size_t>(ptr - start);
                     result.push_back(dense_indices[dense_idx]);
                 }
-                // Fallback Path: O(N) 值比对
                 else
                 {
                     IndexType found_id = null_index;
@@ -351,13 +433,11 @@ namespace RandomEngine::Core::Containers
             return dense_data;
         }
 
-        /// @brief 获取所有数据/行为的连续内存视图 (只读)
         [[nodiscard]] std::span<const DataType> GetAll() const noexcept
         {
             return dense_data;
         }
 
-        /// @brief 获取所有已激活实体的 ID 列表视图 (与 dense_data 索引一一对应)
         [[nodiscard]] std::span<const IndexType> GetAllIDs() const noexcept
         {
             return dense_indices;
@@ -379,8 +459,7 @@ namespace RandomEngine::Core::Containers
             return result;
         }
 
-        // 删除
-        bool Delete(IndexType id) noexcept
+        bool Delete(IndexType id) noexcept(std::is_nothrow_move_assignable_v<DataType>)
         {
             if (!Contains(id))
                 return false;
@@ -389,7 +468,6 @@ namespace RandomEngine::Core::Containers
             size_t remove_idx = static_cast<size_t>(sparse[u_id]);
             size_t last_idx = dense_data.size() - 1;
 
-            // Swap-and-Pop 保持 dense 内存 100% 连续
             if (remove_idx != last_idx)
             {
                 dense_data[remove_idx] = std::move(dense_data.back());
@@ -400,38 +478,36 @@ namespace RandomEngine::Core::Containers
             dense_data.pop_back();
             dense_indices.pop_back();
 
-            // 头插法回收 ID 到 sparse 构成的嵌入式链表中
-            sparse[u_id] = first_free;
-            first_free = id;
+            sparse[u_id] = null_index;
+            free_reverse[u_id] = static_cast<IndexType>(free_ids.size());
+            free_ids.push_back(id);
 
             return true;
         }
 
-        size_t Delete(std::span<const IndexType> ids) noexcept
+        size_t Delete(std::span<const IndexType> ids) noexcept(std::is_nothrow_move_assignable_v<DataType>)
         {
             size_t deleted_count = 0;
             for (IndexType id : ids)
             {
                 if (Delete(id))
-                { // 复用已经写好的 O(1) Delete(id)
+                {
                     ++deleted_count;
                 }
             }
             return deleted_count;
         }
 
-        // 语法糖：支持直接大括号调用 set.DeleteAll({ id1, id2, id3 });
-        size_t Delete(std::initializer_list<IndexType> ids) noexcept
+        size_t Delete(std::initializer_list<IndexType> ids) noexcept(std::is_nothrow_move_assignable_v<DataType>)
         {
             return Delete(std::span<const IndexType>(ids.begin(), ids.size()));
         }
 
-        bool Delete(const DataType *ptr) noexcept
+        bool Delete(const DataType *ptr) noexcept(std::is_nothrow_move_assignable_v<DataType>)
         {
             if (!ptr || dense_data.empty())
                 return false;
 
-            // 校验地址是否在 dense_data 连续内存块内，且必须是对象首地址
             const DataType *start = dense_data.data();
             const DataType *end = start + dense_data.size();
 
@@ -439,16 +515,16 @@ namespace RandomEngine::Core::Containers
             {
                 uintptr_t offset = reinterpret_cast<uintptr_t>(ptr) - reinterpret_cast<uintptr_t>(start);
                 if (offset % sizeof(DataType) == 0)
-                { // 确认是对象首地址
+                {
                     size_t dense_idx = static_cast<size_t>(ptr - start);
-                    return Delete(dense_indices[dense_idx]); // 完美转交 O(1) 的 Delete(id)
+                    return Delete(dense_indices[dense_idx]);
                 }
             }
 
             return false;
         }
 
-        bool Delete(const DataType &object) noexcept
+        bool Delete(const DataType &object) noexcept(std::is_nothrow_move_assignable_v<DataType>)
         {
             return Delete(&object);
         }
@@ -466,7 +542,6 @@ namespace RandomEngine::Core::Containers
                     size_t last_idx = dense_data.size() - 1;
                     IndexType id = dense_indices[remove_idx];
 
-                    // ✅ 原地 Swap-and-Pop，无需二次寻址
                     if (remove_idx != last_idx)
                     {
                         dense_data[remove_idx] = std::move(dense_data.back());
@@ -476,8 +551,9 @@ namespace RandomEngine::Core::Containers
                     dense_data.pop_back();
                     dense_indices.pop_back();
 
-                    sparse[static_cast<size_t>(id)] = first_free;
-                    first_free = id;
+                    sparse[static_cast<size_t>(id)] = null_index;
+                    free_reverse[static_cast<size_t>(id)] = static_cast<IndexType>(free_ids.size());
+                    free_ids.push_back(id);
                     ++deleted_count;
                 }
                 else
@@ -492,11 +568,11 @@ namespace RandomEngine::Core::Containers
         {
             dense_data.clear();
             dense_indices.clear();
-            sparse.clear(); // ✅ 直接清空 sparse，重置整体空间
-            first_free = null_index;
+            sparse.clear();
+            free_ids.clear();
+            free_reverse.clear();
         }
 
-        // 7. 迭代器与容器属性
         [[nodiscard]] size_t Size() const noexcept { return dense_data.size(); }
         [[nodiscard]] bool Empty() const noexcept { return dense_data.empty(); }
 
@@ -511,49 +587,51 @@ namespace RandomEngine::Core::Containers
         auto cend() const noexcept { return dense_data.cend(); }
 
     private:
-        void UnlinkFromFreeList(IndexType id) noexcept
+        [[nodiscard]] static const DataType *Probe(
+            const std::vector<IndexType> &sp,
+            const std::vector<IndexType> &di,
+            const std::vector<DataType> &dd,
+            IndexType id) noexcept
         {
-            if (first_free == null_index)
-                return;
-            if (first_free == id)
+            if constexpr (std::is_signed_v<IndexType>)
             {
-                first_free = sparse[static_cast<size_t>(id)];
-                return;
+                if (id < 0) return nullptr;
             }
-            IndexType curr = first_free;
-            while (curr != null_index)
-            {
-                size_t u_curr = static_cast<size_t>(curr);
-                IndexType next = sparse[u_curr];
-                if (next == id)
-                {
-                    sparse[u_curr] = sparse[static_cast<size_t>(id)];
-                    break;
-                }
-                curr = next;
-            }
+            size_t u = static_cast<size_t>(id);
+            if (u >= sp.size()) return nullptr;
+            IndexType d = sp[u];
+            if (d == null_index) return nullptr;
+            size_t ud = static_cast<size_t>(d);
+            if (ud >= di.size() || di[ud] != id) return nullptr;
+            return &dd[ud];
         }
 
         [[nodiscard]] DataType *TryGetImpl(IndexType id) noexcept
         {
-            if constexpr (std::is_signed_v<IndexType>)
-            {
-                if (id < 0)
-                    return nullptr;
-            }
+            return const_cast<DataType *>(Probe(sparse, dense_indices, dense_data, id));
+        }
+
+        [[nodiscard]] const DataType *TryGetImpl(IndexType id) const noexcept
+        {
+            return Probe(sparse, dense_indices, dense_data, id);
+        }
+
+        void RemoveFromFreeSet(IndexType id) noexcept
+        {
             size_t u_id = static_cast<size_t>(id);
-            if (u_id >= sparse.size())
-                return nullptr;
+            IndexType pos = free_reverse[u_id];
+            if (pos == null_index) return;
 
-            IndexType d_idx = sparse[u_id];
-            if (d_idx == null_index)
-                return nullptr;
+            free_reverse[u_id] = null_index;
+            size_t u_pos = static_cast<size_t>(pos);
 
-            size_t u_d_idx = static_cast<size_t>(d_idx);
-            if (u_d_idx >= dense_indices.size() || dense_indices[u_d_idx] != id)
-                return nullptr;
-
-            return &dense_data[u_d_idx];
+            if (u_pos != free_ids.size() - 1)
+            {
+                IndexType swapped_id = free_ids.back();
+                free_ids[u_pos] = swapped_id;
+                free_reverse[static_cast<size_t>(swapped_id)] = pos;
+            }
+            free_ids.pop_back();
         }
     };
 

@@ -1075,17 +1075,13 @@ namespace RandomEngine::Core::Math
         }
         else if constexpr (Detail::CanConvertSIMD<T, ResultType> && Detail::MatUseSIMD<T, Row, Col>)
         {
-            constexpr std::size_t W_src = RandomEngine::Platform::SIMD::SIMDWidth<T>;
-            constexpr std::size_t W = RandomEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            constexpr std::size_t Step = RandomEngine::Platform::SIMD::ConvertStride<T, ResultType>;
             auto sv = RandomEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
             std::size_t i = 0;
-            for (; i + W_src <= Row * Col; i += W_src)
+            for (; i + Step <= Row * Col; i += Step)
             {
-                auto a = RandomEngine::Platform::SIMD::LoadU<T>(&lhs.m_data[i]);
-                auto a_lo = RandomEngine::Platform::SIMD::Convert<T, ResultType>(a);
-                auto a_hi = RandomEngine::Platform::SIMD::Convert<T, ResultType>(RandomEngine::Platform::SIMD::LoadU<T>(&lhs.m_data[i + W]));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Add<ResultType>(a_lo, sv));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i + W], RandomEngine::Platform::SIMD::Add<ResultType>(a_hi, sv));
+                auto a = RandomEngine::Platform::SIMD::LoadConvert<T, ResultType>(&lhs.m_data[i]);
+                RandomEngine::Platform::SIMD::StoreConvert<T, ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Add<ResultType>(a, sv));
             }
             for (; i < Row * Col; ++i)
                 result[i] = static_cast<ResultType>(lhs[i]) + static_cast<ResultType>(rhs);
@@ -1118,17 +1114,13 @@ namespace RandomEngine::Core::Math
         }
         else if constexpr (Detail::CanConvertSIMD<T, ResultType> && Detail::MatUseSIMD<T, Row, Col>)
         {
-            constexpr std::size_t W_src = RandomEngine::Platform::SIMD::SIMDWidth<T>;
-            constexpr std::size_t W = RandomEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            constexpr std::size_t Step = RandomEngine::Platform::SIMD::ConvertStride<T, ResultType>;
             auto sv = RandomEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
             std::size_t i = 0;
-            for (; i + W_src <= Row * Col; i += W_src)
+            for (; i + Step <= Row * Col; i += Step)
             {
-                auto b = RandomEngine::Platform::SIMD::LoadU<T>(&rhs.m_data[i]);
-                auto b_lo = RandomEngine::Platform::SIMD::Convert<T, ResultType>(b);
-                auto b_hi = RandomEngine::Platform::SIMD::Convert<T, ResultType>(RandomEngine::Platform::SIMD::LoadU<T>(&rhs.m_data[i + W]));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Add<ResultType>(sv, b_lo));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i + W], RandomEngine::Platform::SIMD::Add<ResultType>(sv, b_hi));
+                auto b = RandomEngine::Platform::SIMD::LoadConvert<T, ResultType>(&rhs.m_data[i]);
+                RandomEngine::Platform::SIMD::StoreConvert<T, ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Add<ResultType>(sv, b));
             }
             for (; i < Row * Col; ++i)
                 result[i] = static_cast<ResultType>(lhs) + static_cast<ResultType>(rhs[i]);
@@ -1161,17 +1153,13 @@ namespace RandomEngine::Core::Math
         }
         else if constexpr (Detail::CanConvertSIMD<T, ResultType> && Detail::MatUseSIMD<T, Row, Col>)
         {
-            constexpr std::size_t W_src = RandomEngine::Platform::SIMD::SIMDWidth<T>;
-            constexpr std::size_t W = RandomEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            constexpr std::size_t Step = RandomEngine::Platform::SIMD::ConvertStride<T, ResultType>;
             auto sv = RandomEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
             std::size_t i = 0;
-            for (; i + W_src <= Row * Col; i += W_src)
+            for (; i + Step <= Row * Col; i += Step)
             {
-                auto a = RandomEngine::Platform::SIMD::LoadU<T>(&lhs.m_data[i]);
-                auto a_lo = RandomEngine::Platform::SIMD::Convert<T, ResultType>(a);
-                auto a_hi = RandomEngine::Platform::SIMD::Convert<T, ResultType>(RandomEngine::Platform::SIMD::LoadU<T>(&lhs.m_data[i + W]));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Sub<ResultType>(a_lo, sv));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i + W], RandomEngine::Platform::SIMD::Sub<ResultType>(a_hi, sv));
+                auto a = RandomEngine::Platform::SIMD::LoadConvert<T, ResultType>(&lhs.m_data[i]);
+                RandomEngine::Platform::SIMD::StoreConvert<T, ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Sub<ResultType>(a, sv));
             }
             for (; i < Row * Col; ++i)
                 result[i] = static_cast<ResultType>(lhs[i]) - static_cast<ResultType>(rhs);
@@ -1204,17 +1192,13 @@ namespace RandomEngine::Core::Math
         }
         else if constexpr (Detail::CanConvertSIMD<T, ResultType> && Detail::MatUseSIMD<T, Row, Col>)
         {
-            constexpr std::size_t W_src = RandomEngine::Platform::SIMD::SIMDWidth<T>;
-            constexpr std::size_t W = RandomEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            constexpr std::size_t Step = RandomEngine::Platform::SIMD::ConvertStride<T, ResultType>;
             auto sv = RandomEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
             std::size_t i = 0;
-            for (; i + W_src <= Row * Col; i += W_src)
+            for (; i + Step <= Row * Col; i += Step)
             {
-                auto b = RandomEngine::Platform::SIMD::LoadU<T>(&rhs.m_data[i]);
-                auto b_lo = RandomEngine::Platform::SIMD::Convert<T, ResultType>(b);
-                auto b_hi = RandomEngine::Platform::SIMD::Convert<T, ResultType>(RandomEngine::Platform::SIMD::LoadU<T>(&rhs.m_data[i + W]));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Sub<ResultType>(sv, b_lo));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i + W], RandomEngine::Platform::SIMD::Sub<ResultType>(sv, b_hi));
+                auto b = RandomEngine::Platform::SIMD::LoadConvert<T, ResultType>(&rhs.m_data[i]);
+                RandomEngine::Platform::SIMD::StoreConvert<T, ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Sub<ResultType>(sv, b));
             }
             for (; i < Row * Col; ++i)
                 result[i] = static_cast<ResultType>(lhs) - static_cast<ResultType>(rhs[i]);
@@ -1247,17 +1231,13 @@ namespace RandomEngine::Core::Math
         }
         else if constexpr (Detail::CanConvertSIMD<T, ResultType> && Detail::MatUseSIMD<T, Row, Col>)
         {
-            constexpr std::size_t W_src = RandomEngine::Platform::SIMD::SIMDWidth<T>;
-            constexpr std::size_t W = RandomEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            constexpr std::size_t Step = RandomEngine::Platform::SIMD::ConvertStride<T, ResultType>;
             auto sv = RandomEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(rhs));
             std::size_t i = 0;
-            for (; i + W_src <= Row * Col; i += W_src)
+            for (; i + Step <= Row * Col; i += Step)
             {
-                auto a = RandomEngine::Platform::SIMD::LoadU<T>(&lhs.m_data[i]);
-                auto a_lo = RandomEngine::Platform::SIMD::Convert<T, ResultType>(a);
-                auto a_hi = RandomEngine::Platform::SIMD::Convert<T, ResultType>(RandomEngine::Platform::SIMD::LoadU<T>(&lhs.m_data[i + W]));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Mul<ResultType>(a_lo, sv));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i + W], RandomEngine::Platform::SIMD::Mul<ResultType>(a_hi, sv));
+                auto a = RandomEngine::Platform::SIMD::LoadConvert<T, ResultType>(&lhs.m_data[i]);
+                RandomEngine::Platform::SIMD::StoreConvert<T, ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Mul<ResultType>(a, sv));
             }
             for (; i < Row * Col; ++i)
                 result[i] = static_cast<ResultType>(lhs[i]) * static_cast<ResultType>(rhs);
@@ -1290,17 +1270,13 @@ namespace RandomEngine::Core::Math
         }
         else if constexpr (Detail::CanConvertSIMD<T, ResultType> && Detail::MatUseSIMD<T, Row, Col>)
         {
-            constexpr std::size_t W_src = RandomEngine::Platform::SIMD::SIMDWidth<T>;
-            constexpr std::size_t W = RandomEngine::Platform::SIMD::SIMDWidth<ResultType>;
+            constexpr std::size_t Step = RandomEngine::Platform::SIMD::ConvertStride<T, ResultType>;
             auto sv = RandomEngine::Platform::SIMD::Set1<ResultType>(static_cast<ResultType>(lhs));
             std::size_t i = 0;
-            for (; i + W_src <= Row * Col; i += W_src)
+            for (; i + Step <= Row * Col; i += Step)
             {
-                auto b = RandomEngine::Platform::SIMD::LoadU<T>(&rhs.m_data[i]);
-                auto b_lo = RandomEngine::Platform::SIMD::Convert<T, ResultType>(b);
-                auto b_hi = RandomEngine::Platform::SIMD::Convert<T, ResultType>(RandomEngine::Platform::SIMD::LoadU<T>(&rhs.m_data[i + W]));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Mul<ResultType>(sv, b_lo));
-                RandomEngine::Platform::SIMD::StoreU<ResultType>(&result.m_data[i + W], RandomEngine::Platform::SIMD::Mul<ResultType>(sv, b_hi));
+                auto b = RandomEngine::Platform::SIMD::LoadConvert<T, ResultType>(&rhs.m_data[i]);
+                RandomEngine::Platform::SIMD::StoreConvert<T, ResultType>(&result.m_data[i], RandomEngine::Platform::SIMD::Mul<ResultType>(sv, b));
             }
             for (; i < Row * Col; ++i)
                 result[i] = static_cast<ResultType>(lhs) * static_cast<ResultType>(rhs[i]);

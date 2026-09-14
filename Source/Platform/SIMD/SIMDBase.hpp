@@ -257,6 +257,14 @@ namespace RandomEngine::Platform::SIMD
     template <typename T> RSIMD_FORCEINLINE auto ConvertToInt(auto a);
     template <typename From, typename To> RSIMD_FORCEINLINE auto Convert(auto a);
 
+    // --- 混合类型加载+转换 ---
+    template <typename From, typename To>
+    inline constexpr size_t ConvertStride =
+        SIMDWidth<From> < SIMDWidth<To> ? SIMDWidth<From> : SIMDWidth<To>;
+
+    template <typename From, typename To> RSIMD_FORCEINLINE auto LoadConvert(const From* ptr);
+    template <typename From, typename To> RSIMD_FORCEINLINE void StoreConvert(To* ptr, auto vec);
+
     // =========================================================================
     // 便捷类型别名
     // =========================================================================

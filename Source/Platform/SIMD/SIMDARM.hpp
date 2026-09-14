@@ -149,10 +149,10 @@ RSIMD_FORCEINLINE auto BroadcastLanef(float32x4_t a, int lane) {
 RSIMD_FORCEINLINE auto ConvertToFloatf(int32x4_t a) { return vcvtq_f32_s32(a); }
 RSIMD_FORCEINLINE auto ConvertToIntf(float32x4_t a) { return vcvtq_s32_f32(a); }
 
-RSIMD_FORCEINLINE auto CvtPs2Pd(float32x4_t a) {
-    return vcombine_f64(vcvt_f64_f32(vget_low_f32(a)), vcvt_f64_f32(vget_high_f32(a)));
+RSIMD_FORCEINLINE auto CvtPs2Pd(float32x2_t a) {
+    return vcvt_f64_f32(a);
 }
-RSIMD_FORCEINLINE auto CvtPd2Ps(float64x2_t a) { return vcvtq_f32_f64(a); }
+RSIMD_FORCEINLINE auto CvtPd2Ps(float64x2_t a) { return vcvt_f32_f64(a); }
 
 // =========================================================================
 // double 实现 (NEON - AArch64, 2-wide)
@@ -175,8 +175,14 @@ RSIMD_FORCEINLINE auto Addd(float64x2_t a, float64x2_t b) { return vaddq_f64(a, 
 RSIMD_FORCEINLINE auto Subd(float64x2_t a, float64x2_t b) { return vsubq_f64(a, b); }
 RSIMD_FORCEINLINE auto Muld(float64x2_t a, float64x2_t b) { return vmulq_f64(a, b); }
 RSIMD_FORCEINLINE auto Divd(float64x2_t a, float64x2_t b) {
+#if defined(__aarch64__)
+    return vdivq_f64(a, b);
+#else
     float64x2_t rec = vrecpeq_f64(b);
+    rec = vmulq_f64(vrecpsq_f64(b, rec), rec);
+    rec = vmulq_f64(vrecpsq_f64(b, rec), rec);
     return vmulq_f64(a, rec);
+#endif
 }
 RSIMD_FORCEINLINE auto Negd(float64x2_t a) { return vnegq_f64(a); }
 RSIMD_FORCEINLINE auto Absd(float64x2_t a) { return vabsq_f64(a); }
@@ -389,7 +395,7 @@ template <typename T> RSIMD_FORCEINLINE auto Mul(auto a, auto b) {
 template <typename T> RSIMD_FORCEINLINE auto Div(auto a, auto b) {
     if constexpr (std::is_same_v<T, float>) return Divf(a, b);
     else if constexpr (std::is_same_v<T, double>) return Divd(a, b);
-    else if constexpr (std::is_same_v<T, int32_t>) return a;
+    else static_assert(!std::is_same_v<T, int32_t>, "SIMD integer division is not supported; use scalar division instead");
 }
 template <typename T> RSIMD_FORCEINLINE auto Neg(auto a) {
     if constexpr (std::is_same_v<T, float>) return Negf(a);
@@ -404,12 +410,24 @@ template <typename T> RSIMD_FORCEINLINE auto Abs(auto a) {
 
 template <typename T> RSIMD_FORCEINLINE auto FMAdd(auto a, auto b, auto c) {
     if constexpr (std::is_same_v<T, float>) return FMAddf(a, b, c);
-    else if constexpr (std::is_same_v<T, double>) return Addd(Muld(a, b), c);
+    else if constexpr (std::is_same_v<T, double>) {
+#if defined(__ARM_FEATURE_FMA)
+        return vfmaq_f64(c, a, b);
+#else
+        return Addd(Muld(a, b), c);
+#endif
+    }
     else if constexpr (std::is_same_v<T, int32_t>) return Addi(Muli(a, b), c);
 }
 template <typename T> RSIMD_FORCEINLINE auto FMSub(auto a, auto b, auto c) {
     if constexpr (std::is_same_v<T, float>) return FMSubf(a, b, c);
-    else if constexpr (std::is_same_v<T, double>) return Subd(Muld(a, b), c);
+    else if constexpr (std::is_same_v<T, double>) {
+#if defined(__ARM_FEATURE_FMA)
+        return vfmsq_f64(c, a, b);
+#else
+        return Subd(Muld(a, b), c);
+#endif
+    }
     else if constexpr (std::is_same_v<T, int32_t>) return Subi(Muli(a, b), c);
 }
 template <typename T> RSIMD_FORCEINLINE auto FNMAdd(auto a, auto b, auto c) {
@@ -566,6 +584,32 @@ template <typename From, typename To> RSIMD_FORCEINLINE auto Convert(auto a) {
     if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) return CvtPs2Pd(a);
     else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) return CvtPd2Ps(a);
     else return a;
+}
+
+template <typename From, typename To> RSIMD_FORCEINLINE auto LoadConvert(const From* ptr) {
+    if constexpr (std::is_same_v<From, To>) {
+        return LoadU<To>(ptr);
+    }
+    else if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) {
+        float32x2_t a = vld1_f32(ptr);
+        return vcvt_f64_f32(a);
+    }
+    else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) {
+        float64x2_t a = vld1q_f64(ptr);
+        return vcvt_f32_f64(a);
+    }
+}
+
+template <typename From, typename To> RSIMD_FORCEINLINE void StoreConvert(To* ptr, auto vec) {
+    if constexpr (std::is_same_v<From, To>) {
+        StoreU<To>(ptr, vec);
+    }
+    else if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) {
+        vst1q_f64(ptr, vec);
+    }
+    else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) {
+        vst1_f32(ptr, vec);
+    }
 }
 
 #endif

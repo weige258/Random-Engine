@@ -233,7 +233,11 @@ RSIMD_FORCEINLINE auto Ceilf(__m128 a) {
     return _mm_cvtepi32_ps(_mm_add_epi32(ai, _mm_castps_si128(_mm_and_ps(mask, _mm_set1_ps(1.0f)))));
 }
 RSIMD_FORCEINLINE auto Roundf(__m128 a) {
-    return _mm_cvtepi32_ps(_mm_cvtps_epi32(a));
+    __m128 sign = _mm_and_ps(a, _mm_castsi128_ps(_mm_set1_epi32(0x80000000)));
+    __m128 magic = _mm_or_ps(_mm_castsi128_ps(_mm_set1_epi32(0x4B000000)), sign);
+    __m128 rounded = _mm_add_ps(a, magic);
+    rounded = _mm_sub_ps(rounded, magic);
+    return rounded;
 }
 #endif
 
@@ -454,19 +458,23 @@ RSIMD_FORCEINLINE auto Ceild(__m128d a) { return _mm_ceil_pd(a); }
 RSIMD_FORCEINLINE auto Roundd(__m128d a) { return _mm_round_pd(a, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC); }
 #else
 RSIMD_FORCEINLINE auto Floord(__m128d a) {
-    __m128i ai = _mm_cvttpd_epi32(a);
-    __m128d af = _mm_cvtepi32_pd(ai);
-    __m128d mask = _mm_cmpgt_pd(af, a);
-    return _mm_cvtepi32_pd(_mm_sub_epi32(ai, _mm_castpd_si128(_mm_and_pd(mask, _mm_castsi128_pd(_mm_set1_epi32(1))))));
+    __m128d truncated = _mm_cvtepi32_pd(_mm_cvttpd_epi32(a));
+    __m128d mask = _mm_cmpgt_pd(truncated, a);
+    __m128d one = _mm_set1_pd(1.0);
+    return _mm_sub_pd(truncated, _mm_and_pd(mask, one));
 }
 RSIMD_FORCEINLINE auto Ceild(__m128d a) {
-    __m128i ai = _mm_cvttpd_epi32(a);
-    __m128d af = _mm_cvtepi32_pd(ai);
-    __m128d mask = _mm_cmplt_pd(af, a);
-    return _mm_cvtepi32_pd(_mm_add_epi32(ai, _mm_castpd_si128(_mm_and_pd(mask, _mm_castsi128_pd(_mm_set1_epi32(1))))));
+    __m128d truncated = _mm_cvtepi32_pd(_mm_cvttpd_epi32(a));
+    __m128d mask = _mm_cmplt_pd(truncated, a);
+    __m128d one = _mm_set1_pd(1.0);
+    return _mm_add_pd(truncated, _mm_and_pd(mask, one));
 }
 RSIMD_FORCEINLINE auto Roundd(__m128d a) {
-    return _mm_cvtepi32_pd(_mm_cvtpd_epi32(a));
+    __m128d sign = _mm_and_pd(a, _mm_castsi128_pd(_mm_set1_epi64x(0x8000000000000000LL)));
+    __m128d magic = _mm_or_pd(_mm_castsi128_pd(_mm_set1_epi64x(0x4330000000000000LL)), sign);
+    __m128d rounded = _mm_add_pd(a, magic);
+    rounded = _mm_sub_pd(rounded, magic);
+    return rounded;
 }
 #endif
 
@@ -786,7 +794,7 @@ template <typename T> RSIMD_FORCEINLINE auto Mul(auto a, auto b) {
 template <typename T> RSIMD_FORCEINLINE auto Div(auto a, auto b) {
     if constexpr (std::is_same_v<T, float>) return Divf(a, b);
     else if constexpr (std::is_same_v<T, double>) return Divd(a, b);
-    else if constexpr (std::is_same_v<T, int32_t>) return a;
+    else static_assert(!std::is_same_v<T, int32_t>, "SIMD integer division is not supported; use scalar division instead");
 }
 template <typename T> RSIMD_FORCEINLINE auto Neg(auto a) {
     if constexpr (std::is_same_v<T, float>) return Negf(a);
@@ -955,6 +963,52 @@ template <typename From, typename To> RSIMD_FORCEINLINE auto Convert(auto a) {
     if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) return CvtPs2Pd(a);
     else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) return CvtPd2Ps(a);
     else return a;
+}
+
+// --- 混合类型加载+转换 ---
+template <typename From, typename To> RSIMD_FORCEINLINE auto LoadConvert(const From* ptr) {
+    if constexpr (std::is_same_v<From, To>) {
+        return LoadU<To>(ptr);
+    }
+    else if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) {
+#if defined(RSIMD_AVX)
+        __m128 a = _mm_loadu_ps(ptr);
+        return _mm256_cvtps2_pd(a);
+#elif defined(RSIMD_SSE2)
+        __m128 a = _mm_loadl_pi(_mm_setzero_ps(), reinterpret_cast<const __m64*>(ptr));
+        return _mm_cvtps_pd(a);
+#endif
+    }
+    else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) {
+#if defined(RSIMD_AVX)
+        __m256d a = _mm256_loadu_pd(ptr);
+        return _mm256_cvtpd2_ps(a);
+#elif defined(RSIMD_SSE2)
+        __m128d a = _mm_loadu_pd(ptr);
+        return _mm_cvtpd_ps(a);
+#endif
+    }
+}
+
+// --- 混合类型转换+存储 ---
+template <typename From, typename To> RSIMD_FORCEINLINE void StoreConvert(To* ptr, auto vec) {
+    if constexpr (std::is_same_v<From, To>) {
+        StoreU<To>(ptr, vec);
+    }
+    else if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) {
+#if defined(RSIMD_AVX)
+        _mm256_storeu_pd(ptr, vec);
+#elif defined(RSIMD_SSE2)
+        _mm_storeu_pd(ptr, vec);
+#endif
+    }
+    else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) {
+#if defined(RSIMD_AVX)
+        _mm_storeu_ps(ptr, vec);
+#elif defined(RSIMD_SSE2)
+        _mm_store_sd(reinterpret_cast<double*>(ptr), _mm_castps_pd(vec));
+#endif
+    }
 }
 
 } // namespace RandomEngine::Platform::SIMD

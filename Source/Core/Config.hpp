@@ -4,5 +4,5 @@
 
 namespace RandomEngine::Core::Config {
     using ObjectIDType = uint64_t; 
-    using TimeType = float;
+    using TimeType = double;
 }
