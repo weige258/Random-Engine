@@ -39,7 +39,7 @@ namespace RandomEngine::Core::Jobs::Job
 
         void Execute(ExcuteArgs... args) const
         {
-            if (m_behavior)
+            if (m_behavior.Lock())
             {
                 (m_behavior.Get()->*Method)(args...);
             }

@@ -3,6 +3,7 @@
 #include "Behaviors/BaseBehavior/BindBaseBehavior.hpp"
 #include "Core/Memory/MasterPtr.hpp"
 #include "Core/Behaviors/BaseBehavior/BehaviorSet.hpp"
+#include "Core/Objects/BaseObject/ObjectId.hpp"
 #include <vector>
 
 #define BIND_BEHAVIORS(...) \
@@ -13,7 +14,7 @@ namespace RandomEngine::Core::Objects
 {
     struct BaseObject
     {
-        int64_t id = 0;
+        ObjectId id;
   
         BaseObject();
         virtual ~BaseObject();

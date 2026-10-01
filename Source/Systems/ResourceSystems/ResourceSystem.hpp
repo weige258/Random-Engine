@@ -30,7 +30,7 @@ namespace RandomEngine::Systems::ResourceSystems
             Behaviors::ForEach([&]<typename B>()
                                {
         auto behavior = Core::Memory::MasterPtr<B>(new B());
-        behavior->bind_id = id;
+        behavior->bind_object_id = id;
         behavior_system.AddBehavior(std::move(behavior)); });
 
             return id;

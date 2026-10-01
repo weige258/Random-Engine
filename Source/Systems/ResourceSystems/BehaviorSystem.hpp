@@ -1,10 +1,12 @@
 #pragma once
 
+#include "Core/Objects/BaseObject/ObjectId.hpp"
 #include "Core/Behaviors/BaseBehavior/BaseBehavior.hpp"
 #include "Core/Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 #include "Core/Memory/MasterPtr.hpp"
 #include "Core/Memory/ObserverPtr.hpp"
 #include "Systems/ISystem.hpp"
+#include "Core/Containers/StableRowTable.hpp"
 #include <memory>
 #include <vector>
 #include <utility>
@@ -15,7 +17,10 @@ namespace RandomEngine::Systems::ResourceSystems
     class BehaviorSystem : Systems::ISystem
     {
     private:
-        std::vector<Core::Memory::MasterPtr<Core::Behaviors::BaseBehavior>> all_behaviors;
+        Core::Containers::StableRowTable<
+        Core::Memory::MasterPtr<Core::Behaviors::BaseBehavior>, 
+        std::optional<Core::Objects::ObjectId>> 
+        all_behaviors;
 
         std::vector<Core::Memory::ObserverPtr<Core::Behaviors::BaseBehavior>> behaviors_should_add;
         std::vector<Core::Memory::ObserverPtr<Core::Behaviors::BaseBehavior>> behaviors_should_delete;
@@ -29,7 +34,14 @@ namespace RandomEngine::Systems::ResourceSystems
 
             behaviors_should_add.push_back(Core::Memory::ObserverPtr<Core::Behaviors::BaseBehavior>(behavior));
 
-            all_behaviors.push_back(std::move(behavior));
+            if constexpr (std::is_base_of_v<Core::Behaviors::BindBaseBehavior, T>)
+            {
+                all_behaviors.Insert(std::move(behavior), behavior->bind_object_id);
+            }
+            else if (std::is_base_of_v<Core::Behaviors::BaseBehavior, T>)
+            {
+                all_behaviors.Insert(std::move(behavior));
+            }
         }
 
         template <typename T>
@@ -65,10 +77,10 @@ namespace RandomEngine::Systems::ResourceSystems
             behaviors_should_delete.clear();
         }
 
-        void Init(System &system) ;
+        void Init(System &system);
 
-        void Run(System &system) ;
+        void Run(System &system);
 
-        void Destroy() ;
+        void Destroy();
     };
 }
