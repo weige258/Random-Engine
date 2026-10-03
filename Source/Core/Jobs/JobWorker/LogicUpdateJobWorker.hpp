@@ -8,9 +8,10 @@ namespace RandomEngine::Systems { struct System; }
 
 namespace RandomEngine::Core::Jobs::JobWorker
 {
-    using LogicBehaviorJob = Core::Jobs::Job::BaseJob<&Behaviors::ILogicUpdateBehavior::LogicUpdate,
-                                                      Config::TimeType,
-                                                      ::RandomEngine::Systems::System &>;
+    using LogicUpdateSlot = Core::Jobs::Job::MethodSlot<&Behaviors::ILogicUpdateBehavior::LogicUpdate,
+                                                         Config::TimeType,
+                                                         ::RandomEngine::Systems::System &>;
+    using LogicBehaviorJob = Core::Jobs::Job::BaseJob<LogicUpdateSlot>;
 
     class LogicBehaviorJobWorker : public LoopJobWorker<LogicBehaviorJob>
     {

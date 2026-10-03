@@ -72,7 +72,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
     protected:
         virtual void ExecuteJob(Job &job)
         {
-            if constexpr (requires { job.Execute(); })
+            if constexpr (requires { { job.Execute() } -> std::same_as<void>; })
             {
                 job.Execute();
             }

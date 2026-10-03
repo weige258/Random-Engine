@@ -11,10 +11,11 @@ namespace RandomEngine::Systems { struct System; }
 namespace RandomEngine::Core::Jobs::JobWorker
 {
     
-    using FixUpdateBehaviorJob = Core::Jobs::Job::BaseJob<
+    using FixUpdateSlot = Core::Jobs::Job::MethodSlot<
         &Behaviors::IFixUpdateBehavior::FixUpdate,
         Config::TimeType,
         ::RandomEngine::Systems::System&>;
+    using FixUpdateBehaviorJob = Core::Jobs::Job::BaseJob<FixUpdateSlot>;
 
     /**
      * @brief 固定时间步 Worker（纯执行器）
