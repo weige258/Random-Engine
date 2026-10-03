@@ -13,7 +13,7 @@ namespace RandomEngine::Engine
  
     public:
         
-        static inline RandomEngine::Core::Memory::MasterPtr<RandomEngine::Systems::System> system ;
+        static inline RandomEngine::Core::Memory::MasterPtr<RandomEngine::Systems::System> system = nullptr;
 
         void Init();
 

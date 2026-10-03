@@ -848,9 +848,9 @@ public:
 
     static constexpr size_t SizeInBytes() noexcept { return N * sizeof(T); }
 
-    static const type_info &Type() noexcept { return typeid(Vec<T, N>); }
+    static const std::type_info &Type() noexcept { return typeid(Vec<T, N>); }
 
-    static const type_info &ValueType() noexcept { return typeid(T); }
+    static const std::type_info &ValueType() noexcept { return typeid(T); }
 };
 
 // VecView 定义

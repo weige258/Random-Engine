@@ -44,6 +44,16 @@ namespace RandomEngine::Platform::SIMD
     #define RSIMD_SSE2
 #elif defined(__SSE2__)
     #define RSIMD_SSE2
+#elif defined(_M_IX86_FP) && _M_IX86_FP >= 3
+    #define RSIMD_AVX2
+    #define RSIMD_AVX
+    #define RSIMD_SSE42
+    #define RSIMD_SSE3
+    #define RSIMD_SSE2
+#elif defined(_M_IX86_FP) && _M_IX86_FP == 2
+    #define RSIMD_SSE2
+#elif defined(_M_X64)
+    #define RSIMD_SSE2
 #endif
 
 #if defined(__FMA__)

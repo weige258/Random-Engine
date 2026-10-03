@@ -1023,9 +1023,9 @@ namespace RandomEngine::Core::Math
 
         static constexpr std::tuple<size_t, size_t> Shape() { return std::make_tuple(Row, Col); };
 
-        static const type_info &Type() noexcept { return typeid(Mat<T, Row, Col>); }
+        static const std::type_info &Type() noexcept { return typeid(Mat<T, Row, Col>); }
 
-        static const type_info &ValueType() noexcept { return typeid(T); }
+        static const std::type_info &ValueType() noexcept { return typeid(T); }
     };
 
     // 向量与矩阵复合乘法 v *= m（与 Mat*Vec / Vec*Mat 的 operator* 归位在同一头文件）
