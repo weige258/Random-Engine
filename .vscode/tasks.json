@@ -9,6 +9,20 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "${workspaceFolder}/Build", "--config", "Release"],
+            "group": "build"
+        },
+        {
+            "label": "Build RelWithDebInfo",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "${workspaceFolder}/Build", "--config", "RelWithDebInfo"],
+            "group": "build"
         }
     ]
 }

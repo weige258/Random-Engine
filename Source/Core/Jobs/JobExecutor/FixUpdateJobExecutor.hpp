@@ -357,7 +357,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         // ---------------- 任务管理 ----------------
 
-        bool PushJob(const Core::Jobs::JobWorker::FixUpdateBehaviorJob &job, int target_thread_idx = -1)
+        bool PushJob(const Jobs::Job::FixUpdateBehaviorJob &job, int target_thread_idx = -1)
         {
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);
             if (m_workers.empty()) return false;
@@ -381,7 +381,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             return true;
         }
 
-        bool RemoveJob(const Core::Jobs::JobWorker::FixUpdateBehaviorJob &job)
+        bool RemoveJob(const Jobs::Job::FixUpdateBehaviorJob &job)
         {
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);
             for (auto &w : m_workers)
@@ -593,7 +593,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             auto &victim = m_workers.back();
             victim->Stop();
 
-            std::vector<Core::Jobs::JobWorker::FixUpdateBehaviorJob> orphans;
+            std::vector<Jobs::Job::FixUpdateBehaviorJob> orphans;
             {
                 auto queue_lock = victim->LockQueue();
                 for (auto &t : victim->GetRawTasks())

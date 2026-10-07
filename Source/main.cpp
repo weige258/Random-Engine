@@ -60,7 +60,7 @@ struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_object_id);
         data->velocity += data->acceleration * delta_time;
-        float speed_sq = LengthSquared(data->velocity);
+        double speed_sq = LengthSquared(data->velocity);
         if (speed_sq > data->max_speed * data->max_speed)
         {
             data->velocity = Normalize(data->velocity) * data->max_speed;
@@ -89,7 +89,7 @@ struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
             float overlap = min_dist - dist;
             data->force += normal * (overlap * 500.0f);
             Vec3d rel_vel = data->velocity;
-            float vel_along_normal = Dot(rel_vel, normal);
+            double vel_along_normal = Dot(rel_vel, normal);
             if (vel_along_normal < 0.0f)
             {
                 float j = -(1.0f + data->restitution) * vel_along_normal;
@@ -129,7 +129,7 @@ struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_object_id);
-        float speed = std::sqrt(LengthSquared(data->velocity));
+        double speed = std::sqrt(LengthSquared(data->velocity));
         if (speed > 1e-6f)
         {
             Vec3d drag_force = Normalize(data->velocity) * (-data->drag * speed * speed);
@@ -154,7 +154,7 @@ struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system) 
     {
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_object_id);
-        float angular_speed = std::sqrt(LengthSquared(data->angular_velocity));
+        double angular_speed = std::sqrt(LengthSquared(data->angular_velocity));
         if (angular_speed > 1e-8f)
         {
             Vec3d angular_drag = Normalize(data->angular_velocity) * (-0.5f * angular_speed);
@@ -197,7 +197,7 @@ struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
         auto data = system.resource_system.object_system.GetLocked<EntityData>(bind_object_id);
         Vec3d spring_anchor(0.0f, 0.0f, 0.0f);
         Vec3d displacement = data->position - spring_anchor;
-        float dist = std::sqrt(LengthSquared(displacement));
+        double dist = std::sqrt(LengthSquared(displacement));
         if (dist > 1e-6f)
         {
             Vec3d spring_force = Normalize(displacement) * (-2.0f * dist);
@@ -216,11 +216,11 @@ struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
                            data->position[2] * 0.3f - 5.0f,
                            data->position[0] * 0.4f + 8.0f);
         Vec3d diff = neighbor_pos - data->position;
-        float rest_length = 5.0f;
-        float current_length = std::sqrt(LengthSquared(diff));
+        double rest_length = 5.0f;
+        double current_length = std::sqrt(LengthSquared(diff));
         if (current_length > 1e-6f)
         {
-            float stretch = current_length - rest_length;
+            double stretch = current_length - rest_length;
             Vec3d spring_f = Normalize(diff) * (3.0f * stretch);
             data->force += spring_f;
         }

@@ -1,19 +1,16 @@
 #pragma once
 #include "Jobs/Job/BaseJob.hpp"
 #include "Jobs/JobWorker/LoopJobWorker.hpp"
-#include "Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
+#include "Jobs/Job/LogicUpdateBehaviorJob.hpp"
 #include "Time/Timer.hpp"
 
 namespace RandomEngine::Systems { struct System; }
 
 namespace RandomEngine::Core::Jobs::JobWorker
 {
-    using LogicUpdateSlot = Core::Jobs::Job::MethodSlot<&Behaviors::ILogicUpdateBehavior::LogicUpdate,
-                                                         Config::TimeType,
-                                                         ::RandomEngine::Systems::System &>;
-    using LogicBehaviorJob = Core::Jobs::Job::BaseJob<LogicUpdateSlot>;
-
-    class LogicBehaviorJobWorker : public LoopJobWorker<LogicBehaviorJob>
+    
+  
+    class LogicBehaviorJobWorker : public LoopJobWorker<RandomEngine::Core::Jobs::Job::LogicUpdateBehaviorJob>
     {
     private:
         ::RandomEngine::Systems::System *m_system = nullptr;
@@ -47,7 +44,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
         }
 
         // 逐 Task 执行点：将 Worker 持有的上下文参数（m_dt, *m_system）灌入 Job
-        void ExecuteJob(LogicBehaviorJob &job) override
+        void ExecuteJob(RandomEngine::Core::Jobs::Job::LogicUpdateBehaviorJob &job) override
         {
             if (m_system && job)
             {

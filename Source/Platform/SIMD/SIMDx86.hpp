@@ -3,7 +3,17 @@
 #include "SIMDBase.hpp"
 
 #if defined(_MSC_VER)
-    #include <intrin.h>
+    #if defined(RSIMD_AVX2) || defined(RSIMD_AVX)
+        #include <immintrin.h>
+    #elif defined(RSIMD_SSE42)
+        #include <nmmintrin.h>
+    #elif defined(RSIMD_SSE3)
+        #include <pmmintrin.h>
+    #elif defined(RSIMD_SSE2)
+        #include <emmintrin.h>
+    #else
+        #include <intrin.h>
+    #endif
 #else
     #if defined(RSIMD_AVX2) || defined(RSIMD_AVX)
         #include <immintrin.h>
@@ -17,6 +27,11 @@
 #endif
 
 #include <cmath>
+
+#if defined(_MSC_VER)
+    #define _mm256_cvtps2_pd(a)  _mm256_cvtps_pd(a)
+    #define _mm256_cvtpd2_ps(a)  _mm256_cvtpd_ps(a)
+#endif
 
 namespace RandomEngine::Platform::SIMD
 {

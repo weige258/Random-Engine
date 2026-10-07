@@ -2,8 +2,72 @@ cmake_minimum_required(VERSION 3.10)
 project(RandomEngine)
 set(CMAKE_CXX_STANDARD 23)
 
-if(MSVC)
+# ===========================================================================
+# 编译配置
+# 四种配置各司其职：
+#
+#   Debug          开发调试用 —— 带完整检查、优化关闭、带 PDB
+#   RelWithDebInfo 性能排查用 —— 全速优化 + 带调试符号，崩溃能定位
+#   Release        发版打包用 —— 极致优化、最小体积、无调试信息
+#   MinSizeRel     嵌入式/极限体积 —— 优先小而非快
+# ===========================================================================
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    # MSVC / clang-cl 模式
     add_compile_options(/utf-8)
+
+    # Debug: 完整检查、零优化、增量链接
+    set(CMAKE_CXX_FLAGS_DEBUG         "/MDd /Zi /Od /Ob0 /RTC1"                      CACHE STRING "MSVC Debug flags"          FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG   "/debug /INCREMENTAL"                        CACHE STRING "MSVC Debug linker flags"    FORCE)
+
+    # Release: /O2 + /Ob3 ≈ /O3，LTCG 极致优化
+    # /fp:fast 允许浮点重排（快很多但有微小精度损失）
+    set(CMAKE_CXX_FLAGS_RELEASE       "/MD /O2 /Ob3 /GL /fp:fast /arch:AVX2 /DNDEBUG" CACHE STRING "MSVC Release flags"       FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/LTCG"                                      CACHE STRING "MSVC Release linker flags" FORCE)
+    set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "/LTCG"                                    CACHE STRING "MSVC Release lib flags"    FORCE)
+
+    # RelWithDebInfo: 全速优化 + 带 PDB（崩溃堆栈有行号）
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO       "/MD /O2 /Ob3 /GL /fp:fast /arch:AVX2 /Zi /DNDEBUG" CACHE STRING "MSVC RelWithDebInfo flags"       FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "/LTCG /debug"                                    CACHE STRING "MSVC RelWithDebInfo linker flags" FORCE)
+
+    # MinSizeRel: 优先体积
+    set(CMAKE_CXX_FLAGS_MINSIZEREL        "/MD /O1 /Ob1 /DNDEBUG" CACHE STRING "MSVC MinSizeRel flags"       FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "/LTCG"                 CACHE STRING "MSVC MinSizeRel linker flags" FORCE)
+
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    # Clang (非 MSVC 兼容模式) / MinGW GCC / Linux GCC —— 共用一套
+    add_compile_options(-Wall -Wextra)
+
+    if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # Clang on Windows (MSVC ABI) —— 用 /MT 静态链接 UCRT，避免 lld-link 的
+        # __declspec(dllimport) 与 libucrt.lib 不兼容问题
+        set(_CXX_BASE         "/MT  -O3 -flto -march=native -DNDEBUG")
+        set(_CXX_BASE_SMALL   "/MT  -Os -flto -march=native -DNDEBUG")
+        set(_CXX_DEBUG        "/MTd -g -O0 -D_DEBUG")
+        set(_C_BASE           "/MT  -O3 -flto -march=native -DNDEBUG")
+        set(_C_BASE_SMALL     "/MT  -Os -flto -march=native -DNDEBUG")
+        set(_C_DEBUG          "/MTd -g -O0 -D_DEBUG")
+    else()
+        set(_CXX_BASE         "-O3 -flto -march=native -DNDEBUG")
+        set(_CXX_BASE_SMALL   "-Os -flto -march=native -DNDEBUG")
+        set(_CXX_DEBUG        "-g -O0 -D_DEBUG")
+        set(_C_BASE           "-O3 -flto -march=native -DNDEBUG")
+        set(_C_BASE_SMALL     "-Os -flto -march=native -DNDEBUG")
+        set(_C_DEBUG          "-g -O0 -D_DEBUG")
+    endif()
+
+    set(CMAKE_C_FLAGS_DEBUG             "${_C_DEBUG}"            CACHE STRING "Clang/GCC C Debug flags"        FORCE)
+    set(CMAKE_C_FLAGS_RELEASE           "${_C_BASE}"             CACHE STRING "Clang/GCC C Release flags"      FORCE)
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO    "${_C_BASE} -g"          CACHE STRING "Clang/GCC C RelWithDebInfo flags" FORCE)
+    set(CMAKE_C_FLAGS_MINSIZEREL        "${_C_BASE_SMALL}"       CACHE STRING "Clang/GCC C MinSizeRel flags"  FORCE)
+
+    set(CMAKE_CXX_FLAGS_DEBUG           "${_CXX_DEBUG}"          CACHE STRING "Clang/GCC Debug flags"         FORCE)
+    set(CMAKE_CXX_FLAGS_RELEASE         "${_CXX_BASE}"           CACHE STRING "Clang/GCC Release flags"       FORCE)
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO  "${_CXX_BASE} -g"        CACHE STRING "Clang/GCC RelWithDebInfo flags" FORCE)
+    set(CMAKE_CXX_FLAGS_MINSIZEREL      "${_CXX_BASE_SMALL}"     CACHE STRING "Clang/GCC MinSizeRel flags"    FORCE)
+
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE        "-flto" CACHE STRING "Clang/GCC Release linker"          FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO  "-flto" CACHE STRING "Clang/GCC RelWithDebInfo linker"  FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL     "-flto" CACHE STRING "Clang/GCC MinSizeRel linker"      FORCE)
 endif()
 
 add_subdirectory(Source)

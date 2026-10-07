@@ -4,19 +4,13 @@
 #include <thread>
 #include "Jobs/Job/BaseJob.hpp"
 #include "Jobs/JobWorker/LoopJobWorker.hpp"
-#include "Behaviors/BaseBehavior/IFixUpdateBehavior.hpp"
+#include "Jobs/Job/FixUpdateBehaviorJob.hpp"
 
 namespace RandomEngine::Systems { struct System; }
 
 namespace RandomEngine::Core::Jobs::JobWorker
 {
     
-    using FixUpdateSlot = Core::Jobs::Job::MethodSlot<
-        &Behaviors::IFixUpdateBehavior::FixUpdate,
-        Config::TimeType,
-        ::RandomEngine::Systems::System&>;
-    using FixUpdateBehaviorJob = Core::Jobs::Job::BaseJob<FixUpdateSlot>;
-
     /**
      * @brief 固定时间步 Worker（纯执行器）
      *
@@ -28,7 +22,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
      * 步边界对齐：所有 Worker 共享同一条 m_step_target 线，
      * 同一编号的步在所有 Worker 上对应同一逻辑时刻，支持跨 Worker 状态依赖。
      */
-    class FixUpdateJobWorker : public LoopJobWorker<FixUpdateBehaviorJob>
+    class FixUpdateJobWorker : public LoopJobWorker<Jobs::Job::FixUpdateBehaviorJob>
     {
     private:
         // ---- 跨线程配置（Executor 写 / Worker 读，必须原子） ----
@@ -113,7 +107,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
             std::this_thread::sleep_for(std::chrono::microseconds(200));
         }
 
-        void ExecuteJob(FixUpdateBehaviorJob &job, Config::TimeType fixed_dt)
+        void ExecuteJob(Jobs::Job::FixUpdateBehaviorJob &job, Config::TimeType fixed_dt)
         {
             ::RandomEngine::Systems::System *sys = m_system.load(std::memory_order_acquire);
             if (sys && job)
