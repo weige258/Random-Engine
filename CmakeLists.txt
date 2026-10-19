@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(RandomEngine)
 set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ===========================================================================
 # 编译配置
@@ -35,7 +37,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     # Clang (非 MSVC 兼容模式) / MinGW GCC / Linux GCC —— 共用一套
-    add_compile_options(-Wall -Wextra)
+    # -Wno-c++98-compat 关闭 C++98 兼容性警告（我们用 C++23），避免 IntelliSense 误标黄
+    add_compile_options(-Wall -Wextra -Wno-c++98-compat -Wno-c++98-compat-pedantic)
 
     if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # Clang on Windows (MSVC ABI) —— 用 /MT 静态链接 UCRT，避免 lld-link 的

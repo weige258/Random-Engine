@@ -3,8 +3,7 @@
 #include "BehaviorSystem.hpp"
 #include "Behaviors/BaseBehavior/BindBaseBehavior.hpp"
 #include "Systems/ISystem.hpp"
-
-
+#include "Core/Behaviors/BaseBehavior/BehaviorTraits.hpp"
 namespace RandomEngine::Systems::ResourceSystems
 {
 
@@ -26,7 +25,7 @@ namespace RandomEngine::Systems::ResourceSystems
         {
             auto id = object_system.Add(std::forward<U>(object));
 
-            using Behaviors = typename std::decay_t<U>::BindBehaviors;
+            using Behaviors = typename RandomEngine::Core::Behaviors::BehaviorsBindForObject<std::decay_t<U>>::Type;
             Behaviors::ForEach([&]<typename B>()
                                {
         auto behavior = Core::Memory::MasterPtr<B>(new B());

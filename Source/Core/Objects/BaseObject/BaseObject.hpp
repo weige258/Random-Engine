@@ -6,10 +6,6 @@
 #include "Core/Objects/BaseObject/ObjectId.hpp"
 #include <vector>
 
-#define BIND_BEHAVIORS(...) \
-public: \
-    using BindBehaviors = ::RandomEngine::Core::Behaviors::BindBehaviorSet<__VA_ARGS__>;
-
 namespace RandomEngine::Core::Objects
 {
     struct BaseObject
