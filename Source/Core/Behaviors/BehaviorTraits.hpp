@@ -1,7 +1,7 @@
 // Source/Core/Behaviors/BehaviorTraits.hpp
 #pragma once
 
-#include "BindBaseBehavior.hpp"
+#include "BaseBehavior/BindBaseBehavior.hpp"
 
 namespace RandomEngine::Core::Behaviors 
 {

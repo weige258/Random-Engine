@@ -1,6 +1,6 @@
 #pragma once
-#include "BaseBehavior.hpp"
-#include "BindBaseBehavior.hpp"
+#include "BaseBehavior/BaseBehavior.hpp"
+#include "BaseBehavior/BindBaseBehavior.hpp"
 
 
 namespace RandomEngine::Core::Behaviors

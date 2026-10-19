@@ -3,7 +3,7 @@
 #include "BehaviorSystem.hpp"
 #include "Behaviors/BaseBehavior/BindBaseBehavior.hpp"
 #include "Systems/ISystem.hpp"
-#include "Core/Behaviors/BaseBehavior/BehaviorTraits.hpp"
+#include "Core/Behaviors/BehaviorTraits.hpp"
 namespace RandomEngine::Systems::ResourceSystems
 {
 
