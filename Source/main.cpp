@@ -263,6 +263,7 @@ void BounceBehavior::FixUpdate(RandomEngine::Core::Config::TimeType delta_time, 
 
 void DragBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
+
     auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
     double speed = std::sqrt(LengthSquared(data->velocity));
     if (speed > 1e-6f)

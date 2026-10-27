@@ -2,6 +2,7 @@
 #include <atomic>
 #include <thread>
 #include <algorithm>
+#include <type_traits>
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -62,10 +63,11 @@ struct alignas(64) IdLock {
     }
 
     void Unlock(uint32_t token) noexcept {
-        if (--m_depth == 0) {
-            std::atomic_ref<uint32_t>(m_owner)
-                .store(0, std::memory_order_release);
-        }
+        std::atomic_ref<uint32_t> owner(m_owner);
+        if (owner.load(std::memory_order_relaxed) != token)
+            return;
+        if (m_depth > 0 && --m_depth == 0)
+            owner.store(0, std::memory_order_release);
     }
 
     bool IsHeldBy(uint32_t token) const noexcept {

@@ -10,10 +10,13 @@
 #include "Systems/ISystem.hpp"
 #include "Config.hpp"
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
 #include <span>
 #include <ranges>
 #include <vector>
 #include <iostream>
+#include "Core/Memory/IdLockGuard.hpp"
 
 namespace RandomEngine::Systems::ResourceSystems
 {
@@ -24,12 +27,13 @@ namespace RandomEngine::Systems::ResourceSystems
         // 对象容器
         RandomEngine::Core::Containers::SparseSet<Core::Memory::MasterPtr<Core::Objects::BaseObject>, RandomEngine::Core::Config::ObjectIDType> objects;
 
+        // 对象删增锁
+        mutable std::shared_mutex m_structure_mutex;
         // id锁
         std::vector<Core::Memory::IdLock> m_locks;
 
-        [[nodiscard]] Core::Memory::IdLock &LockOf(Core::Config::ObjectIDType id) noexcept
+        [[nodiscard]] Core::Memory::IdLock &GetIdLock(const Core::Config::ObjectIDType &id) noexcept
         {
-            // ObjectIDType 若为非整型类,在此取其 index/generation 字段做映射
             return m_locks[static_cast<size_t>(id) % m_locks.size()];
         }
 
@@ -50,7 +54,7 @@ namespace RandomEngine::Systems::ResourceSystems
         auto GetLocked(Core::Config::ObjectIDType id)
             -> Core::Memory::IdLockedPtr<Core::Objects::BaseObject>
         {
-            Core::Memory::IdLock &lock = LockOf(id);
+            Core::Memory::IdLock &lock = GetIdLock(id);
             lock.Lock(Core::Memory::ThisThreadToken());
             if (auto *mp = objects.GetPtr(id))
                 return {mp->Get(), lock, typename Core::Memory::IdLockedPtr<Core::Objects::BaseObject>::adopt_lock_t{}};
@@ -61,11 +65,11 @@ namespace RandomEngine::Systems::ResourceSystems
         template <typename U>
         auto GetLocked(Core::Config::ObjectIDType id) -> Core::Memory::IdLockedPtr<U>
         {
-            Core::Memory::IdLock &lock = LockOf(id);
+            Core::Memory::IdLock &lock = GetIdLock(id);
             lock.Lock(Core::Memory::ThisThreadToken());
             if (auto *mp = objects.GetPtr(id))
             {
-                if (U *raw = Core::Cast::ReCast<U*>(mp->Get()))
+                if (U *raw = Core::Cast::ReCast<U *>(mp->Get()))
                     return {raw, lock, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{}};
                 lock.Unlock(Core::Memory::ThisThreadToken());
                 return {};
@@ -217,12 +221,11 @@ namespace RandomEngine::Systems::ResourceSystems
 
             Core::Memory::MasterPtr<Core::Objects::BaseObject> ptr(new RawType(std::move(object)));
 
+            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex);
             Core::Config::ObjectIDType id = objects.AllocateID();
             ptr->id = id;
-            Core::Memory::IdLock &lock = LockOf(id);
-            lock.Lock(Core::Memory::ThisThreadToken());
+            auto guard = LockOf(id);
             objects.Insert(id, std::move(ptr));
-            lock.Unlock(Core::Memory::ThisThreadToken());
             return id;
         }
 
@@ -243,6 +246,7 @@ namespace RandomEngine::Systems::ResourceSystems
             std::vector<Core::Config::ObjectIDType> ids;
             ids.reserve(container.size());
 
+            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex);
             for (auto &ptr : container)
             {
                 if (!ptr)
@@ -250,10 +254,8 @@ namespace RandomEngine::Systems::ResourceSystems
 
                 Core::Config::ObjectIDType id = objects.AllocateID();
                 ptr->id = id;
-                Core::Memory::IdLock &lock = LockOf(id);
-                lock.Lock(Core::Memory::ThisThreadToken());
+                auto guard = LockOf(id);
                 objects.Insert(id, std::move(ptr));
-                lock.Unlock(Core::Memory::ThisThreadToken());
                 ids.push_back(id);
             }
 
@@ -263,24 +265,38 @@ namespace RandomEngine::Systems::ResourceSystems
         // 删除对象
         bool Delete(const Core::Config::ObjectIDType id)
         {
-            Core::Memory::IdLock &lock = LockOf(id);
-            lock.Lock(Core::Memory::ThisThreadToken());
+            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex); 
+            auto guard = LockOf(id);
             bool ok = objects.Delete(id);
-            lock.Unlock(Core::Memory::ThisThreadToken());
             return ok;
+        }
+
+        // 加锁
+
+        [[nodiscard]] Core::Memory::IdLockGuard LockOf(Core::Config::ObjectIDType id)
+        {
+            uint32_t bucket = static_cast<uint32_t>(static_cast<size_t>(id) % m_locks.size());
+            return Core::Memory::IdLockGuard(m_locks, bucket, Core::Memory::ThisThreadToken());
+        }
+
+        [[nodiscard]] Core::Memory::IdLockGuard LockOf(std::span<const Core::Config::ObjectIDType> ids)
+        {
+            std::vector<uint32_t> buckets;
+            buckets.reserve(ids.size());
+            for (auto id : ids)
+                buckets.push_back(static_cast<uint32_t>(static_cast<size_t>(id) % m_locks.size()));
+
+            return Core::Memory::IdLockGuard(m_locks, buckets, Core::Memory::ThisThreadToken());
         }
 
     public:
         void InitLockSystem(uint32_t cpu_l3_cache_kb);
-    
+
         // 系统执行
         void Init(System &system);
 
-
         void Run(System &system);
-   
 
         void Destroy();
-   
     };
 };
