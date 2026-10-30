@@ -69,10 +69,23 @@ namespace RandomEngine::Core::Jobs::JobWorker
 
         // 由外部（如 Executor 的均衡迁移）在持有 m_task_mutex 修改 m_dedicated_tasks 后调用，
         // 通知 Worker 在下一轮 ProcessWork 中重新刷新 m_local_cache。
-        // relaxed 足够：真正的数据可见性由调用方持有的 m_task_mutex 的 release-acquire 保证。
-        void MarkDirty() { m_dirty.store(true, std::memory_order_relaxed); }
+        // 必须唤醒：Worker 在缓存为空时会阻塞等待，只置 dirty 而不唤醒会让它永久睡死。
+        void MarkDirty()
+        {
+            m_dirty.store(true, std::memory_order_relaxed);
+            WakeUp();
+        }
 
     protected:
+        // 唤醒挂点：默认唤醒自身的 m_cv。
+        // 重写 ProcessWork 并改睡在其他条件变量上的子类（如 FixUpdateJobWorker 睡在 Stepper 的 cv）
+        // 必须覆盖此函数，否则 MarkDirty 对它们完全无效。
+        virtual void WakeUp()
+        {
+            std::lock_guard<std::mutex> lock(m_cv_mutex);
+            m_cv.notify_one();
+        }
+
         virtual void ExecuteJob(Job &job)
         {
             if constexpr (requires { { job.Execute() } -> std::same_as<void>; })

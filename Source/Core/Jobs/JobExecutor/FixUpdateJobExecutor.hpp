@@ -348,9 +348,20 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         void Resume()
         {
+            // StartStepper 会把全局步号归零；Worker 的 m_done_step 若停留在旧值 N，
+            // 则 done < target 永远不成立（0 < N 为假），Fix 行为从此一步不跑。
+            // 先把全局步号归零，再把所有 Worker 的已执行步号对齐到同一起点，
+            // 保证两边都从 0 重新开始（顺序不能反，否则 Worker 可能先读到旧步号）。
+            m_step_target.store(0, std::memory_order_release);
+
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);
             for (auto &w : m_workers)
-                if (w) w->Resume();
+            {
+                if (!w) continue;
+                w->ResetDoneStep(0);
+                w->Resume();
+            }
+
             StartStepper();
         }
 
@@ -661,8 +672,8 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             using Clock = std::chrono::steady_clock;
             const auto start = Clock::now();
 
-            const Config::TimeType fixed_dt = m_fixed_dt.load(std::memory_order_acquire);
-            const auto step_dur = std::chrono::duration<Config::TimeType>(fixed_dt);
+            Config::TimeType fixed_dt = m_fixed_dt.load(std::memory_order_acquire);
+            auto step_dur = std::chrono::duration<Config::TimeType>(fixed_dt);
             auto next = start + step_dur;
 
             while (!m_stepper_stop.load(std::memory_order_relaxed))
@@ -670,6 +681,17 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                 std::this_thread::sleep_until(next);
 
                 const auto now = Clock::now();
+
+                // 运行期步长变更：从当前时刻重新对齐节拍，
+                // 否则旧 next 会按新步长继续累加，产生一次性补步尖峰
+                const Config::TimeType cur_fixed_dt = m_fixed_dt.load(std::memory_order_acquire);
+                if (cur_fixed_dt != fixed_dt)
+                {
+                    fixed_dt = cur_fixed_dt;
+                    step_dur = std::chrono::duration<Config::TimeType>(fixed_dt);
+                    next     = now + step_dur;
+                }
+
                 int64_t due = 0;
                 while (now >= next) { ++due; next += step_dur; }
 

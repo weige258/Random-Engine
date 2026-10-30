@@ -72,7 +72,25 @@ namespace RandomEngine::Core::Jobs::JobWorker
             return m_done_step.load(std::memory_order_relaxed);
         }
 
+        // 供 Executor 在 Pause/Resume 或步号线重建时把 Worker 的已执行步号与全局步号重新对齐
+        void ResetDoneStep(int64_t step)
+        {
+            m_done_step.store(step, std::memory_order_relaxed);
+        }
+
     protected:
+        // 本类不睡在 m_cv 上（睡在 Stepper 的 m_step_cv），必须覆盖唤醒挂点，
+        // 否则均衡器迁移进来的任务只能靠 50ms 超时才被看见
+        void WakeUp() override
+        {
+            BaseLoopJobWorker::WakeUp();
+            if (m_step_cv && m_step_mutex)
+            {
+                std::lock_guard<std::mutex> lock(*m_step_mutex);
+                m_step_cv->notify_all();
+            }
+        }
+
         void OnStart() override
         {
             if (m_step_target_ptr)
@@ -103,6 +121,9 @@ namespace RandomEngine::Core::Jobs::JobWorker
             else
             {
                 int64_t done = m_done_step.load(std::memory_order_relaxed);
+                // 不变式：Worker 不允许跑在全局步号线前面。
+                // 步号线回退（Pause/Resume 归零）时 done 跟随回退，而不是空等 target 追上来。
+                if (done > target) done = target;
                 while (done < target)
                 {
                     for (auto &job : m_local_cache)
@@ -116,6 +137,8 @@ namespace RandomEngine::Core::Jobs::JobWorker
             }
 
             // 3. 已追上：等待 Stepper 发布新步号（notify_all 即时唤醒，超时仅防 Stepper 先挂死）
+            // 谓词必须包含 m_dirty：迁移进来的任务靠 MarkDirty → WakeUp 提前返回，
+            // 否则 notify 只是让谓词重判一次（不满足），仍要睡满 50ms 超时
             if (m_step_cv && m_step_mutex)
             {
                 std::unique_lock<std::mutex> lk(*m_step_mutex);
@@ -123,10 +146,16 @@ namespace RandomEngine::Core::Jobs::JobWorker
                 {
                     return !m_is_running.load(std::memory_order_relaxed)
                         || m_is_paused.load(std::memory_order_relaxed)
+                        || m_dirty.load(std::memory_order_relaxed)
                         || (m_step_target_ptr
                             && m_step_target_ptr->load(std::memory_order_acquire)
                                 > m_done_step.load(std::memory_order_relaxed));
                 });
+            }
+            else
+            {
+                // 未注入 notifier 时不能空转，否则整条线程 100% 忙等打满一个核
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         }
 

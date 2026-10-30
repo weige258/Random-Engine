@@ -233,7 +233,7 @@ void CollisionBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_t
         double vel_along_normal = Dot(rel_vel, normal);
         if (vel_along_normal < 0.0f)
         {
-            float j = -(1.0f + data->restitution) * vel_along_normal;
+            double j = -(1.0f + data->restitution) * vel_along_normal;
             j /= (1.0f / data->mass + 1.0f / data->mass);
             data->velocity += normal * (j / data->mass);
         }

@@ -41,6 +41,11 @@ namespace RandomEngine::Core::Jobs::JobWorker
         void OnLoopStart() override
         {
             m_dt = m_timer.GetDeltaTime();
+
+            // 空闲时 Worker 阻塞在 m_cv 上，唤醒后首帧 dt 会等于整个空闲时长；
+            // 直接送入 velocity 积分会炸，按最小 15fps 夹取
+            constexpr Config::TimeType kMaxDt = Config::TimeType{1} / 15;
+            if (m_dt > kMaxDt) m_dt = kMaxDt;
         }
 
         // 逐 Task 执行点：将 Worker 持有的上下文参数（m_dt, *m_system）灌入 Job
