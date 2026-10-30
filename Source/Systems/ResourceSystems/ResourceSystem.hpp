@@ -1,7 +1,7 @@
 #pragma once
 #include "ObjectSystem.hpp"
 #include "BehaviorSystem.hpp"
-#include "Behaviors/BaseBehavior/BindBaseBehavior.hpp"
+#include "Behaviors/BaseBehavior/BaseBindBehavior.hpp"
 #include "Systems/ISystem.hpp"
 #include "Core/Behaviors/BehaviorTraits.hpp"
 namespace RandomEngine::Systems::ResourceSystems

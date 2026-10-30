@@ -5,13 +5,13 @@
 
 namespace RandomEngine::Core::Behaviors {
     
-    struct BindBaseBehavior: BaseBehavior
+    struct BaseBindBehavior: BaseBehavior
     {
         static constexpr Config::ObjectIDType null_index = static_cast<Config::ObjectIDType>(-1);
         Objects::ObjectId bind_object_id=null_index;
 
-        BindBaseBehavior();
-        virtual ~BindBaseBehavior();
+        BaseBindBehavior();
+        virtual ~BaseBindBehavior();
     };
     
 }

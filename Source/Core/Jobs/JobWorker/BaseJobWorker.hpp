@@ -59,6 +59,8 @@ namespace RandomEngine::Core::Jobs::JobWorker
         void Pause()
         {
             m_is_paused.store(true, std::memory_order_release);
+            std::lock_guard<std::mutex> lock(m_cv_mutex);
+            m_cv.notify_all();
         }
 
         void Resume()

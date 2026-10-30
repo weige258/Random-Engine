@@ -1,6 +1,6 @@
 #pragma once
 #include "Jobs/Job/BaseJob.hpp"
-#include "Jobs/JobWorker/LoopJobWorker.hpp"
+#include "Jobs/JobWorker/BaseLoopJobWorker.hpp"
 #include "Jobs/Job/LogicUpdateBehaviorJob.hpp"
 #include "Time/Timer.hpp"
 
@@ -10,7 +10,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
 {
     
   
-    class LogicBehaviorJobWorker : public LoopJobWorker<RandomEngine::Core::Jobs::Job::LogicUpdateBehaviorJob>
+    class LogicBehaviorJobWorker : public BaseLoopJobWorker<RandomEngine::Core::Jobs::Job::LogicUpdateBehaviorJob>
     {
     private:
         ::RandomEngine::Systems::System *m_system = nullptr;

@@ -34,7 +34,7 @@ namespace RandomEngine::Systems::ResourceSystems
 
             behaviors_should_add.push_back(Core::Memory::ObserverPtr<Core::Behaviors::BaseBehavior>(behavior));
 
-            if constexpr (std::is_base_of_v<Core::Behaviors::BindBaseBehavior, T>)
+            if constexpr (std::is_base_of_v<Core::Behaviors::BaseBindBehavior, T>)
             {
                 all_behaviors.Insert(std::move(behavior), behavior->bind_object_id);
             }

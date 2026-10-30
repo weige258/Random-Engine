@@ -5,7 +5,7 @@
 
 namespace RandomEngine::Core::Behaviors{
 
-struct BindBaseBehavior;
+struct BaseBindBehavior;
 
 struct BaseBehavior{
      

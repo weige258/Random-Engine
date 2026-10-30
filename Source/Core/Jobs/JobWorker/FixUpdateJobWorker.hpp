@@ -1,9 +1,11 @@
 #pragma once
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 #include "Jobs/Job/BaseJob.hpp"
-#include "Jobs/JobWorker/LoopJobWorker.hpp"
+#include "Jobs/JobWorker/BaseLoopJobWorker.hpp"
 #include "Jobs/Job/FixUpdateBehaviorJob.hpp"
 
 namespace RandomEngine::Systems { struct System; }
@@ -22,7 +24,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
      * 步边界对齐：所有 Worker 共享同一条 m_step_target 线，
      * 同一编号的步在所有 Worker 上对应同一逻辑时刻，支持跨 Worker 状态依赖。
      */
-    class FixUpdateJobWorker : public LoopJobWorker<Jobs::Job::FixUpdateBehaviorJob>
+    class FixUpdateJobWorker : public BaseLoopJobWorker<Jobs::Job::FixUpdateBehaviorJob>
     {
     private:
         // ---- 跨线程配置（Executor 写 / Worker 读，必须原子） ----
@@ -32,6 +34,10 @@ namespace RandomEngine::Core::Jobs::JobWorker
         // ---- 步数同步（Executor 发布 / Worker 追赶） ----
         std::atomic<int64_t> *m_step_target_ptr = nullptr; // 指向 Executor 的全局步号
         std::atomic<int64_t>  m_done_step{0};              // 本 Worker 已执行到第几步（Worker 写 / Executor 读）
+
+        // ---- Stepper 通知（Executor 注入） ----
+        std::mutex              *m_step_mutex = nullptr;
+        std::condition_variable *m_step_cv    = nullptr;
 
     public:
         FixUpdateJobWorker() = default;
@@ -55,6 +61,12 @@ namespace RandomEngine::Core::Jobs::JobWorker
             m_step_target_ptr = target_ptr;
         }
 
+        void SetStepNotifier(std::mutex *m, std::condition_variable *cv)
+        {
+            m_step_mutex = m;
+            m_step_cv    = cv;
+        }
+
         [[nodiscard]] int64_t DoneStep() const noexcept
         {
             return m_done_step.load(std::memory_order_relaxed);
@@ -70,7 +82,7 @@ namespace RandomEngine::Core::Jobs::JobWorker
 
         void ProcessWork() override
         {
-            // 0. 任务集变更时刷新本地缓存（复用 LoopJobWorker 的 dirty-cache 机制）
+            // 0. 任务集变更时刷新本地缓存（复用 BaseLoopJobWorker 的 dirty-cache 机制）
             if (m_dirty.exchange(false, std::memory_order_acquire))
             {
                 std::lock_guard<std::mutex> lock(m_task_mutex);
@@ -103,8 +115,19 @@ namespace RandomEngine::Core::Jobs::JobWorker
                 m_done_step.store(done, std::memory_order_relaxed);
             }
 
-            // 3. 已追上：短暂退让，等待节拍器发布新步号
-            std::this_thread::sleep_for(std::chrono::microseconds(200));
+            // 3. 已追上：等待 Stepper 发布新步号（notify_all 即时唤醒，超时仅防 Stepper 先挂死）
+            if (m_step_cv && m_step_mutex)
+            {
+                std::unique_lock<std::mutex> lk(*m_step_mutex);
+                m_step_cv->wait_for(lk, std::chrono::milliseconds(50), [&]
+                {
+                    return !m_is_running.load(std::memory_order_relaxed)
+                        || m_is_paused.load(std::memory_order_relaxed)
+                        || (m_step_target_ptr
+                            && m_step_target_ptr->load(std::memory_order_acquire)
+                                > m_done_step.load(std::memory_order_relaxed));
+                });
+            }
         }
 
         void ExecuteJob(Jobs::Job::FixUpdateBehaviorJob &job, Config::TimeType fixed_dt)

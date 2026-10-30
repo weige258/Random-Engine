@@ -5,12 +5,11 @@
 #include <atomic>
 #include <algorithm>
 #include <type_traits>
-#include <chrono>
 
 namespace RandomEngine::Core::Jobs::JobWorker
 {
     template <typename Job>
-    class LoopJobWorker : public BaseJobWorker
+    class BaseLoopJobWorker : public BaseJobWorker
     {
     protected:
         std::vector<Job> m_dedicated_tasks;
@@ -28,16 +27,20 @@ namespace RandomEngine::Core::Jobs::JobWorker
         }
 
     public:
-        LoopJobWorker() = default;
-        ~LoopJobWorker() override { Stop(); }
+        BaseLoopJobWorker() = default;
+        ~BaseLoopJobWorker() override { Stop(); }
 
         void PushTask(const Job &task)
         {
             if (!IsValid(task)) return;
-            std::lock_guard<std::mutex> lock(m_task_mutex);
-            m_dedicated_tasks.push_back(task);
-            m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed);
-            m_dirty.store(true, std::memory_order_relaxed);
+            {
+                std::lock_guard<std::mutex> lock(m_task_mutex);
+                m_dedicated_tasks.push_back(task);
+                m_task_count.store(m_dedicated_tasks.size(), std::memory_order_relaxed);
+                m_dirty.store(true, std::memory_order_relaxed);
+            }
+            std::lock_guard<std::mutex> lock(m_cv_mutex);
+            m_cv.notify_one();
         }
 
         bool RemoveTask(const Job &task)
@@ -95,7 +98,11 @@ namespace RandomEngine::Core::Jobs::JobWorker
             }
             else
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                std::unique_lock<std::mutex> lock(m_cv_mutex);
+                m_cv.wait(lock, [this]()
+                {
+                    return m_dirty.load(std::memory_order_relaxed) || m_is_paused.load(std::memory_order_relaxed) || !m_is_running.load(std::memory_order_relaxed);
+                });
             }
         }
     };

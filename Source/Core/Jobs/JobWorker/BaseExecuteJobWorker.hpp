@@ -13,7 +13,7 @@
 namespace RandomEngine::Core::Jobs::JobWorker
 {
     template <typename Job>
-    class ExecuteJobWorker : public BaseJobWorker
+    class BaseExecuteJobWorker : public BaseJobWorker
     {
     protected:
         std::deque<Job> m_task_queue;
@@ -29,31 +29,43 @@ namespace RandomEngine::Core::Jobs::JobWorker
         }
 
     public:
-        ExecuteJobWorker() = default;
-        ~ExecuteJobWorker() override { Stop(); }
+        BaseExecuteJobWorker() = default;
+        ~BaseExecuteJobWorker() override { Stop(); }
 
         void PushTask(const Job &task)
         {
             if (!IsValid(task)) return;
-            std::lock_guard<std::mutex> lock(m_task_mutex);
-            m_task_queue.push_back(task);
-            m_task_count.store(m_task_queue.size(), std::memory_order_relaxed);
+            {
+                std::lock_guard<std::mutex> lock(m_task_mutex);
+                m_task_queue.push_back(task);
+                m_task_count.store(m_task_queue.size(), std::memory_order_relaxed);
+            }
+            std::lock_guard<std::mutex> lock(m_cv_mutex);
+            m_cv.notify_one();
         }
 
         void PushTask(Job &&task)
         {
             if (!IsValid(task)) return;
-            std::lock_guard<std::mutex> lock(m_task_mutex);
-            m_task_queue.push_back(std::move(task));
-            m_task_count.store(m_task_queue.size(), std::memory_order_relaxed);
+            {
+                std::lock_guard<std::mutex> lock(m_task_mutex);
+                m_task_queue.push_back(std::move(task));
+                m_task_count.store(m_task_queue.size(), std::memory_order_relaxed);
+            }
+            std::lock_guard<std::mutex> lock(m_cv_mutex);
+            m_cv.notify_one();
         }
 
         void PushTaskFront(Job &&task)
         {
             if (!IsValid(task)) return;
-            std::lock_guard<std::mutex> lock(m_task_mutex);
-            m_task_queue.push_front(std::move(task));
-            m_task_count.store(m_task_queue.size(), std::memory_order_relaxed);
+            {
+                std::lock_guard<std::mutex> lock(m_task_mutex);
+                m_task_queue.push_front(std::move(task));
+                m_task_count.store(m_task_queue.size(), std::memory_order_relaxed);
+            }
+            std::lock_guard<std::mutex> lock(m_cv_mutex);
+            m_cv.notify_one();
         }
 
         void ClearTasks()
@@ -80,7 +92,13 @@ namespace RandomEngine::Core::Jobs::JobWorker
         void StopAfterDrain()
         {
             while (m_is_running.load(std::memory_order_relaxed) && GetTaskCount() > 0)
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            {
+                std::unique_lock<std::mutex> lock(m_cv_mutex);
+                m_cv.wait_for(lock, std::chrono::milliseconds(100), [this]()
+                {
+                    return m_task_count.load(std::memory_order_relaxed) == 0 || m_is_paused.load(std::memory_order_relaxed) || !m_is_running.load(std::memory_order_relaxed);
+                });
+            }
             Stop();
         }
 
@@ -119,7 +137,11 @@ namespace RandomEngine::Core::Jobs::JobWorker
             }
             else
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                std::unique_lock<std::mutex> lock(m_cv_mutex);
+                m_cv.wait(lock, [this]()
+                {
+                    return m_task_count.load(std::memory_order_relaxed) > 0 || m_is_paused.load(std::memory_order_relaxed) || !m_is_running.load(std::memory_order_relaxed);
+                });
             }
         }
     };

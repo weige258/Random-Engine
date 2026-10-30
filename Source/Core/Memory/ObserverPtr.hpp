@@ -8,68 +8,68 @@
 namespace RandomEngine::Core::Memory
 {
     template <typename T>
-    struct MasterPtr; //[cite: 41]
+    struct MasterPtr;
 
     template <typename T>
     class ObserverPtr
     {
     private:
         T *ptr = nullptr;
-        PtrControlBlock *block = nullptr; //[cite: 41, 42]
+        PtrControlBlock *block = nullptr;
 
         template <typename U>
         friend class ObserverPtr;
 
     public:
-        class ScopedRef //[cite: 41]
+        class ScopedRef
         {
         private:
-            T *ptr = nullptr;                 //[cite: 41]
-            PtrControlBlock *block = nullptr; //[cite: 41, 42]
+            T *ptr = nullptr;
+            PtrControlBlock *block = nullptr;
 
             friend class ObserverPtr;
-            ScopedRef(T *p, PtrControlBlock *b) noexcept : ptr(p), block(b) {} //[cite: 41]
+            ScopedRef(T *p, PtrControlBlock *b) noexcept : ptr(p), block(b) {}
 
         public:
-            ScopedRef() noexcept = default; //[cite: 41]
-            ~ScopedRef()                    //[cite: 41]
+            ScopedRef() noexcept = default;
+            ~ScopedRef()
             {
-                if (block) //[cite: 41]
+                if (block)
                 {
-                    block->active_readers.fetch_sub(1, std::memory_order_release); //[cite: 41]
+                    block->active_readers.fetch_sub(1, std::memory_order_release);
                 }
             }
 
-            ScopedRef(const ScopedRef &) = delete;            //[cite: 41]
-            ScopedRef &operator=(const ScopedRef &) = delete; //[cite: 41]
+            ScopedRef(const ScopedRef &) = delete;
+            ScopedRef &operator=(const ScopedRef &) = delete;
 
-            ScopedRef(ScopedRef &&other) noexcept : ptr(other.ptr), block(other.block) //[cite: 41]
+            ScopedRef(ScopedRef &&other) noexcept : ptr(other.ptr), block(other.block)
             {
-                other.ptr = nullptr;   //[cite: 41]
-                other.block = nullptr; //[cite: 41]
+                other.ptr = nullptr;
+                other.block = nullptr;
             }
 
-            ScopedRef &operator=(ScopedRef &&other) noexcept //[cite: 41]
+            ScopedRef &operator=(ScopedRef &&other) noexcept
             {
-                if (this != &other) //[cite: 41]
+                if (this != &other)
                 {
-                    if (block)                                                         //[cite: 41]
-                        block->active_readers.fetch_sub(1, std::memory_order_release); //[cite: 41]
-                    ptr = other.ptr;                                                   //[cite: 41]
-                    block = other.block;                                               //[cite: 41]
-                    other.ptr = nullptr;                                               //[cite: 41]
-                    other.block = nullptr;                                             //[cite: 41]
+                    if (block)
+                        block->active_readers.fetch_sub(1, std::memory_order_release);
+                    ptr = other.ptr;
+                    block = other.block;
+                    other.ptr = nullptr;
+                    other.block = nullptr;
                 }
-                return *this; //[cite: 41]
+                return *this;
             }
 
-            [[nodiscard]] T *Get() const noexcept { return ptr; }              //[cite: 41]
-            [[nodiscard]] T *operator->() const noexcept { return ptr; }       //[cite: 41]
-            [[nodiscard]] T &operator*() const noexcept { return *ptr; }       //[cite: 41]
-            explicit operator bool() const noexcept { return ptr != nullptr; } //[cite: 41]
+            [[nodiscard]] T *Get() const noexcept { return ptr; }
+            [[nodiscard]] T *operator->() const noexcept { return ptr; }
+            [[nodiscard]] T &operator*() const noexcept { return *ptr; }
+            explicit operator bool() const noexcept { return ptr != nullptr; }
         };
 
-        ObserverPtr() noexcept = default; //[cite: 41]
+        ObserverPtr() noexcept = default;
 
         ObserverPtr(std::nullptr_t) noexcept : ptr(nullptr), block(nullptr) {}
 
@@ -98,13 +98,13 @@ namespace RandomEngine::Core::Memory
                 block->observer_count.fetch_add(1, std::memory_order_relaxed);
         }
 
-        ~ObserverPtr() //[cite: 41]
+        ~ObserverPtr()
         {
-            if (block && block->observer_count.fetch_sub(1, std::memory_order_acq_rel) == 1) //[cite: 41]
+            if (block && block->observer_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
             {
-                if (block->target_ptr.load(std::memory_order_acquire) == nullptr) //[cite: 41]
+                if (block->target_ptr.load(std::memory_order_acquire) == nullptr)
                 {
-                    delete block; //[cite: 41]
+                    delete block;
                 }
             }
         }
@@ -121,9 +121,9 @@ namespace RandomEngine::Core::Memory
             {
                 this->~ObserverPtr();
                 ptr = other.ptr;     // <-- 补齐 ptr 拷贝[cite: 48]
-                block = other.block; //[cite: 48]
+                block = other.block;
                 if (block)
-                    block->observer_count.fetch_add(1, std::memory_order_relaxed); //[cite: 48]
+                    block->observer_count.fetch_add(1, std::memory_order_relaxed);
             }
             return *this;
         }
@@ -140,9 +140,9 @@ namespace RandomEngine::Core::Memory
             {
                 this->~ObserverPtr();
                 ptr = other.ptr;     // <-- 补齐 ptr 移动[cite: 48]
-                block = other.block; //[cite: 48]
+                block = other.block;
                 other.ptr = nullptr;
-                other.block = nullptr; //[cite: 48]
+                other.block = nullptr;
             }
             return *this;
         }
@@ -178,9 +178,9 @@ namespace RandomEngine::Core::Memory
             return ScopedRef{ptr, block};
         }
 
-        [[nodiscard]] bool Expired() const noexcept //[cite: 41]
+        [[nodiscard]] bool Expired() const noexcept
         {
-            return !block || block->target_ptr.load(std::memory_order_relaxed) == nullptr; //[cite: 41, 42]
+            return !block || block->target_ptr.load(std::memory_order_relaxed) == nullptr;
         }
 
         [[nodiscard]] T *Get() const noexcept
@@ -188,20 +188,20 @@ namespace RandomEngine::Core::Memory
             return (block && block->target_ptr.load(std::memory_order_relaxed)) ? ptr : nullptr;
         }
 
-        [[nodiscard]] T *operator->() const noexcept { return Get(); }       //[cite: 41]
-        [[nodiscard]] T &operator*() const noexcept { return *Get(); }       //[cite: 41]
-        explicit operator bool() const noexcept { return Get() != nullptr; } //[cite: 41]
+        [[nodiscard]] T *operator->() const noexcept { return Get(); }
+        [[nodiscard]] T &operator*() const noexcept { return *Get(); }
+        explicit operator bool() const noexcept { return Get() != nullptr; }
 
         // 跨模板类型比较运算符支持[cite: 41]
         template <typename U>
-        bool operator==(const ObserverPtr<U> &other) const noexcept { return block == other.block; } //[cite: 41]
+        bool operator==(const ObserverPtr<U> &other) const noexcept { return block == other.block; }
         template <typename U>
-        bool operator!=(const ObserverPtr<U> &other) const noexcept { return block != other.block; } //[cite: 41]
+        bool operator!=(const ObserverPtr<U> &other) const noexcept { return block != other.block; }
 
-        bool operator==(std::nullptr_t) const noexcept { return Get() == nullptr; } //[cite: 41]
-        bool operator!=(std::nullptr_t) const noexcept { return Get() != nullptr; } //[cite: 41]
+        bool operator==(std::nullptr_t) const noexcept { return Get() == nullptr; }
+        bool operator!=(std::nullptr_t) const noexcept { return Get() != nullptr; }
 
-        friend struct MasterPtr<T>; //[cite: 41]
+        friend struct MasterPtr<T>;
 
         template <typename Target, typename Source>
         friend ObserverPtr<Target> dynamic_observer_cast(const ObserverPtr<Source> &src) noexcept;

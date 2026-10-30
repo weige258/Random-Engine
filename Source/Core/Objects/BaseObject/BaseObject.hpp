@@ -1,8 +1,6 @@
 #pragma once
 #include <cstdint>
-#include "Behaviors/BaseBehavior/BindBaseBehavior.hpp"
 #include "Core/Memory/MasterPtr.hpp"
-#include "Core/Behaviors/BehaviorSet.hpp"
 #include "Core/Objects/BaseObject/ObjectId.hpp"
 #include <vector>
 

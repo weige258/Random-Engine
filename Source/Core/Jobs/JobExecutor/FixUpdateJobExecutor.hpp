@@ -231,6 +231,9 @@ namespace RandomEngine::Core::Jobs::JobExecutor
         std::thread           m_stepper_thread;
         std::atomic<bool>     m_stepper_stop{false};
 
+        std::mutex              m_step_cv_mutex;
+        std::condition_variable m_step_cv;
+
         std::atomic<bool>   m_is_running{false};
         std::atomic<bool>   m_auto_balance{true};
         std::atomic<size_t> m_rr_index{0};
@@ -331,7 +334,13 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         void Pause()
         {
-            m_stepper_timer.Stop();
+            m_stepper_stop.store(true, std::memory_order_release);
+            {
+                std::lock_guard<std::mutex> lock(m_step_cv_mutex);
+                m_step_cv.notify_all();
+            }
+            if (m_stepper_thread.joinable())
+                m_stepper_thread.join();
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);
             for (auto &w : m_workers)
                 if (w) w->Pause();
@@ -342,7 +351,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             std::shared_lock<std::shared_mutex> lock(m_workers_mutex);
             for (auto &w : m_workers)
                 if (w) w->Resume();
-            m_stepper_timer.Start();
+            StartStepper();
         }
 
         [[nodiscard]] bool IsRunning() const { return m_is_running.load(std::memory_order_relaxed); }
@@ -535,6 +544,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
                 if (m_system) worker->SetSystem(*m_system);
                 worker->SetFixedTimestep(m_fixed_dt);
                 worker->SetStepTarget(&m_step_target);
+                worker->SetStepNotifier(&m_step_cv_mutex, &m_step_cv);
                 m_workers.push_back(std::move(worker));
             }
         }
@@ -549,6 +559,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
             if (m_system) worker->SetSystem(*m_system);
             worker->SetFixedTimestep(m_fixed_dt.load(std::memory_order_relaxed));
             worker->SetStepTarget(&m_step_target);
+            worker->SetStepNotifier(&m_step_cv_mutex, &m_step_cv);
 
             // 从最忙 Worker 迁移一半任务到新 Worker
             if (!m_workers.empty())
@@ -637,33 +648,42 @@ namespace RandomEngine::Core::Jobs::JobExecutor
         void StopStepper()
         {
             m_stepper_stop.store(true, std::memory_order_release);
+            {
+                std::lock_guard<std::mutex> lock(m_step_cv_mutex);
+                m_step_cv.notify_all();
+            }
             if (m_stepper_thread.joinable())
                 m_stepper_thread.join();
         }
 
         void StepperLoop()
         {
-            Config::TimeType accumulator = Config::TimeType{0};
+            using Clock = std::chrono::steady_clock;
+            const auto start = Clock::now();
+
+            const Config::TimeType fixed_dt = m_fixed_dt.load(std::memory_order_acquire);
+            const auto step_dur = std::chrono::duration<Config::TimeType>(fixed_dt);
+            auto next = start + step_dur;
 
             while (!m_stepper_stop.load(std::memory_order_relaxed))
             {
-                const Config::TimeType real_dt   = m_stepper_timer.GetDeltaTime();
-                const Config::TimeType fixed_dt  = m_fixed_dt.load(std::memory_order_acquire);
-                const int   max_steps = m_max_steps.load(std::memory_order_acquire);
+                std::this_thread::sleep_until(next);
 
-                accumulator += real_dt;
+                const auto now = Clock::now();
+                int64_t due = 0;
+                while (now >= next) { ++due; next += step_dur; }
 
-                const Config::TimeType max_accum = static_cast<Config::TimeType>(max_steps) * fixed_dt;
-                if (accumulator > max_accum)
-                    accumulator = max_accum;
-
-                while (accumulator >= fixed_dt)
+                if (due > 0)
                 {
-                    m_step_target.fetch_add(1, std::memory_order_release);
-                    accumulator -= fixed_dt;
+                    const int max_steps = m_max_steps.load(std::memory_order_acquire);
+                    if (due > max_steps)
+                    {
+                        next = Clock::now() + step_dur;
+                        due  = max_steps;
+                    }
+                    m_step_target.fetch_add(due, std::memory_order_release);
+                    m_step_cv.notify_all();
                 }
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         }
 

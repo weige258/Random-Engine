@@ -1,6 +1,6 @@
 #include "Application.hpp"
 #include "Core/Objects/BaseObject/BaseObject.hpp"
-#include "Core/Behaviors/BaseBehavior/BindBaseBehavior.hpp"
+#include "Core/Behaviors/BaseBehavior/BaseBindBehavior.hpp"
 #include "Core/Behaviors/BaseBehavior/ILogicUpdateBehavior.hpp"
 #include "Core/Behaviors/BaseBehavior/IFixUpdateBehavior.hpp"
 #include "Core/Config.hpp"
@@ -38,52 +38,52 @@ struct alignas(64) PerfCounters
 
 static PerfCounters g_counters;
 
-struct MovementBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct MovementBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct CollisionBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct CollisionBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct BounceBehavior : BindBaseBehavior, IFixUpdateBehavior
+struct BounceBehavior : BaseBindBehavior, IFixUpdateBehavior
 {
     void FixUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct DragBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct DragBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct GravityBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct GravityBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct RotationBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct RotationBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct BoundaryBehavior : BindBaseBehavior, IFixUpdateBehavior
+struct BoundaryBehavior : BaseBindBehavior, IFixUpdateBehavior
 {
     void FixUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct ForceAccumBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct ForceAccumBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct SpringBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct SpringBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };
 
-struct DampingBehavior : BindBaseBehavior, ILogicUpdateBehavior
+struct DampingBehavior : BaseBindBehavior, ILogicUpdateBehavior
 {
     void LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system);
 };

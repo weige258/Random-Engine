@@ -1,6 +1,6 @@
 #pragma once
 #include "BaseBehavior/BaseBehavior.hpp"
-#include "BaseBehavior/BindBaseBehavior.hpp"
+#include "BaseBehavior/BaseBindBehavior.hpp"
 
 
 namespace RandomEngine::Core::Behaviors
@@ -21,5 +21,5 @@ namespace RandomEngine::Core::Behaviors
 
 
     template <typename... Behaviors>
-    using BindBehaviorSet = BehaviorSet<BindBaseBehavior, Behaviors...>;
+    using BindBehaviorSet = BehaviorSet<BaseBindBehavior, Behaviors...>;
 }

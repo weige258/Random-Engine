@@ -1,7 +1,7 @@
 // Source/Core/Behaviors/BehaviorTraits.hpp
 #pragma once
-
-#include "BaseBehavior/BindBaseBehavior.hpp"
+#include "BehaviorSet.hpp"
+#include "BaseBehavior/BaseBindBehavior.hpp"
 
 namespace RandomEngine::Core::Behaviors 
 {
@@ -28,6 +28,6 @@ namespace RandomEngine::Core::Behaviors
         using Type = ::RandomEngine::Core::Behaviors::BindBehaviorSet<__VA_ARGS__>; \
         static_assert( \
             ::RandomEngine::Core::Behaviors::BindBehaviorSet<__VA_ARGS__>::count >= 0, \
-            "BIND_BEHAVIORS_TO_OBJECT Error: All behaviors must derive from BindBaseBehavior!" \
+            "BIND_BEHAVIORS_TO_OBJECT Error: All behaviors must derive from BaseBindBehavior!" \
         ); \
     };
