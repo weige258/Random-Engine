@@ -115,6 +115,7 @@ int main()
     constexpr int NUM_ENTITIES = 100000;
     std::printf("Creating %d entities with 10 behaviors each...\n", NUM_ENTITIES);
 
+    
     for (int i = 0; i < NUM_ENTITIES; ++i)
     {
         TestEntity entity;
