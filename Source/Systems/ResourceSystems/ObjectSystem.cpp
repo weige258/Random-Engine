@@ -20,7 +20,6 @@ namespace RandomEngine::Systems::ResourceSystems
 
     void ObjectSystem::Run(System &system)
     {
-        
     }
 
     void ObjectSystem::Destroy()

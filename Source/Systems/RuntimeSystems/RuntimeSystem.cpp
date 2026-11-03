@@ -12,7 +12,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         logic_update_system.Run(system);
         fix_update_system.Run(system);
 
-        system.resource_system.behavior_system.FlushPendingQueue();
+        system.resource_system.behavior_system.FlushPendingBehaviorsQueue();
     }
 
     void RuntimeSystem::Destroy(){

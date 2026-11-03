@@ -2,8 +2,8 @@
 
 #include "PtrControlBlock.hpp"
 #include "ObserverPtr.hpp"
-#include <thread>
 #include <utility>
+#include <exception>
 #include <concepts>
 #include <functional>
 
@@ -25,13 +25,34 @@ namespace RandomEngine::Core::Memory
     public:
         MasterPtr(std::nullptr_t) noexcept : ptr(nullptr), block(nullptr) {}
 
-        explicit MasterPtr(T *resource = nullptr) : ptr(resource) 
+        explicit MasterPtr(T *resource = nullptr)
+            : ptr(resource)
         {
-            if (ptr)
+            if (!ptr)
+                return;
+
+            try
             {
-                block = new PtrControlBlock();                                                
-                block->target_ptr.store(static_cast<void *>(ptr), std::memory_order_relaxed); 
-                block->observer_count.store(1, std::memory_order_relaxed);                    // Master 算 1 个生命周期屏障
+                block = new PtrControlBlock();
+                block->state.store(
+                    PtrControlBlock::OwnerUnit,
+                    std::memory_order_relaxed);
+                block->target_ptr.store(
+                    static_cast<void *>(ptr),
+                    std::memory_order_relaxed);
+
+                block->owned_ptr = ptr;
+
+                block->destroy_owned = [](void *p) noexcept
+                {
+                    delete static_cast<T *>(p);
+                };
+            }
+            catch (...)
+            {
+                delete ptr;
+                ptr = nullptr;
+                throw;
             }
         }
 
@@ -83,35 +104,26 @@ namespace RandomEngine::Core::Memory
             std::swap(block, other.block);
         }
 
-        void Reset() noexcept 
+        void Reset() noexcept
         {
-            if (block) 
+            T *old_ptr = std::exchange(ptr, nullptr);
+
+            PtrControlBlock *old_block =
+                std::exchange(block, nullptr);
+
+            if (!old_block)
             {
-                // 1. release 标记置空，阻止后续新的 ObserverPtr::Lock() 成功
-                block->target_ptr.store(nullptr, std::memory_order_release); 
-
-                // 2. 无锁等待：仅当恰好有其他线程在 Lock() 内的微秒级临界区时极短暂 Yield
-                while (block->active_readers.load(std::memory_order_acquire) > 0) 
-                {
-                    std::this_thread::yield(); 
-                }
-
-                // 3. 安全物理释放
-                delete ptr;    
-                ptr = nullptr; 
-
-                // 4. 减去 Master 持有的计数
-                if (block->observer_count.fetch_sub(1, std::memory_order_acq_rel) == 1) 
-                {
-                    delete block; 
-                }
-                block = nullptr; 
+                delete old_ptr;
+                return;
             }
-            else if (ptr) 
-            {
-                delete ptr;    
-                ptr = nullptr; 
-            }
+
+            // O(1) 立即返回，不等任何人。
+            // 销毁责任自动落到"最后一个放手的人"：
+            //   · 此刻无读者 → Close() 内部直接销毁
+            //   · 此刻有读者 → 最后一个 ScopedRef::Leave() 销毁
+            old_block->Close();
+
+            old_block->ReleaseOwnerRef();   // 释放 Master 那份引用；之后绝不再访问 old_block
         }
 
         [[nodiscard]] T *Get() const noexcept { return ptr; }              

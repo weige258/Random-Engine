@@ -318,6 +318,7 @@ void BoundaryBehavior::FixUpdate(RandomEngine::Core::Config::TimeType delta_time
 
 void ForceAccumBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
+
     auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
     Vec3d spring_anchor(0.0f, 0.0f, 0.0f);
     Vec3d displacement = data->position - spring_anchor;
@@ -333,6 +334,7 @@ void ForceAccumBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_
 void SpringBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
     auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
+
     Vec3d neighbor_pos(data->position[1] * 0.5f + 10.0f,
                        data->position[2] * 0.3f - 5.0f,
                        data->position[0] * 0.4f + 8.0f);
@@ -351,6 +353,7 @@ void SpringBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time
 void DampingBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
     auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
+
     data->force -= data->velocity * 0.8f;
     data->torque -= data->angular_velocity * 0.3f;
     g_counters.damping.fetch_add(1, std::memory_order_relaxed);

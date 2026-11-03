@@ -3,6 +3,10 @@
 #include <thread>
 #include <algorithm>
 #include <type_traits>
+#include <cstdint>
+#include <limits>
+#include <exception>
+#include <cassert>
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -26,14 +30,20 @@ inline void CpuPause() noexcept {
 struct alignas(64) IdLock {
     private:
     
-    uint32_t m_owner = 0;
+    uint64_t m_owner = 0;
     uint32_t m_depth = 0;
 
     public:
-    void Lock(uint32_t token) noexcept {
-        std::atomic_ref<uint32_t> owner(m_owner);
+    void Lock(uint64_t token) noexcept {
+        if (token == 0)
+            std::terminate();
+
+        std::atomic_ref<uint64_t> owner(m_owner);
 
         if (owner.load(std::memory_order_relaxed) == token) {
+            if (m_depth == std::numeric_limits<uint32_t>::max())
+                std::terminate();
+
             ++m_depth;
             return;
         }
@@ -41,7 +51,7 @@ struct alignas(64) IdLock {
         uint32_t backoff = 1;
         for (;;) {
             if (owner.load(std::memory_order_relaxed) == 0) {
-                uint32_t expected = 0;
+                uint64_t expected = 0;
                 if (owner.compare_exchange_weak(expected, token,
                         std::memory_order_acquire,
                         std::memory_order_relaxed)) {
@@ -62,16 +72,21 @@ struct alignas(64) IdLock {
         }
     }
 
-    void Unlock(uint32_t token) noexcept {
-        std::atomic_ref<uint32_t> owner(m_owner);
-        if (owner.load(std::memory_order_relaxed) != token)
-            return;
-        if (m_depth > 0 && --m_depth == 0)
+    void Unlock(uint64_t token) noexcept {
+        std::atomic_ref<uint64_t> owner(m_owner);
+        if (token == 0 ||
+            owner.load(std::memory_order_relaxed) != token ||
+            m_depth == 0) {
+            assert(false && "IdLock::Unlock: owner/depth mismatch");
+            std::terminate();
+        }
+
+        if (--m_depth == 0)
             owner.store(0, std::memory_order_release);
     }
 
-    bool IsHeldBy(uint32_t token) const noexcept {
-        return std::atomic_ref<const uint32_t>(m_owner)
+    [[nodiscard]] bool IsHeldBy(uint64_t token) const noexcept {
+        return std::atomic_ref<const uint64_t>(m_owner)
             .load(std::memory_order_relaxed) == token;
     }
 };
@@ -79,9 +94,15 @@ struct alignas(64) IdLock {
 static_assert(std::is_trivially_copyable_v<IdLock>,
               "IdLock 必须 trivially copyable，以支持 vector 预分配初始化");
 
-inline uint32_t ThisThreadToken() noexcept {
-    static std::atomic<uint32_t> s_next{1};
-    thread_local const uint32_t s_token = s_next.fetch_add(1, std::memory_order_relaxed);
+inline uint64_t ThisThreadToken() noexcept {
+    static std::atomic<uint64_t> s_next{1};
+    thread_local const uint64_t s_token = []() noexcept {
+        const uint64_t value = s_next.fetch_add(1, std::memory_order_relaxed);
+        // 0 是哨兵，发生 64 位回绕时停止分配，不允许重新分配旧 Token。
+        if (value == 0)
+            std::terminate();
+        return value;
+    }();
     return s_token;
 }
 

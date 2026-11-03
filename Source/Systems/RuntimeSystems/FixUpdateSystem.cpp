@@ -39,7 +39,7 @@ namespace RandomEngine::Systems::RuntimeSystems
         UpdateCpuPressure(system);
 
         auto [added, deleted] = system.resource_system.behavior_system
-                                    .FetchBehaviorChangesToRuntimeSystem<Core::Behaviors::IFixUpdateBehavior>();
+                                    .FetchBehaviorsChangesToRuntimeSystem<Core::Behaviors::IFixUpdateBehavior>();
 
         if (!added.empty() || !deleted.empty())
         {

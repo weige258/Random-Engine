@@ -15,7 +15,6 @@
 #include <span>
 #include <ranges>
 #include <vector>
-#include <iostream>
 #include "Core/Memory/IdLockGuard.hpp"
 
 namespace RandomEngine::Systems::ResourceSystems
@@ -55,10 +54,11 @@ namespace RandomEngine::Systems::ResourceSystems
             -> Core::Memory::IdLockedPtr<Core::Objects::BaseObject>
         {
             Core::Memory::IdLock &lock = GetIdLock(id);
-            lock.Lock(Core::Memory::ThisThreadToken());
+            const uint64_t token = Core::Memory::ThisThreadToken();
+            lock.Lock(token);
             if (auto *mp = objects.GetPtr(id))
-                return {mp->Get(), lock, typename Core::Memory::IdLockedPtr<Core::Objects::BaseObject>::adopt_lock_t{}};
-            lock.Unlock(Core::Memory::ThisThreadToken());
+                return {mp->Get(), lock, token, typename Core::Memory::IdLockedPtr<Core::Objects::BaseObject>::adopt_lock_t{}};
+            lock.Unlock(token);
             return {};
         }
 
@@ -66,15 +66,16 @@ namespace RandomEngine::Systems::ResourceSystems
         auto GetLocked(Core::Config::ObjectIDType id) -> Core::Memory::IdLockedPtr<U>
         {
             Core::Memory::IdLock &lock = GetIdLock(id);
-            lock.Lock(Core::Memory::ThisThreadToken());
+            const uint64_t token = Core::Memory::ThisThreadToken();
+            lock.Lock(token);
             if (auto *mp = objects.GetPtr(id))
             {
                 if (U *raw = Core::Cast::ReCast<U *>(mp->Get()))
-                    return {raw, lock, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{}};
-                lock.Unlock(Core::Memory::ThisThreadToken());
+                    return {raw, lock, token, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{}};
+                lock.Unlock(token);
                 return {};
             }
-            lock.Unlock(Core::Memory::ThisThreadToken());
+            lock.Unlock(token);
             return {};
         }
 
@@ -92,6 +93,7 @@ namespace RandomEngine::Systems::ResourceSystems
         Core::Memory::ObserverPtr<U> GetObserver(const Core::Config::ObjectIDType &id)
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
+
             if (auto *master_ptr = objects.GetPtr(id))
             {
                 if (Core::Cast::ReCast<U *>(master_ptr->Get()) != nullptr)
@@ -102,56 +104,7 @@ namespace RandomEngine::Systems::ResourceSystems
             return {};
         }
 
-        [[nodiscard]] auto GetAll() noexcept
-        {
-            return objects.GetAll() | std::views::transform([](auto &master_ptr) -> Core::Objects::BaseObject &
-                                                            { return *master_ptr; });
-        }
-
-        std::vector<Core::Memory::ObserverPtr<Core::Objects::BaseObject>> GetAllObserver() const
-        {
-            std::vector<Core::Memory::ObserverPtr<Core::Objects::BaseObject>> result;
-            auto raw_span = objects.GetAll();
-            result.reserve(raw_span.size());
-            for (const auto &ptr : raw_span)
-            {
-                if (ptr)
-                    result.emplace_back(ptr);
-            }
-            return result;
-        }
-
-        template <typename U>
-        auto GetAll()
-        {
-            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
-
-            return objects.GetAll() | std::views::filter([](const auto &ptr)
-                                                         { return ptr && Core::Cast::ReCast<U *>(ptr.Get()) != nullptr; }) |
-                   std::views::transform([](const auto &ptr) -> U &
-                                         { return *Core::Cast::ReCast<U *>(ptr.Get()); });
-        }
-
-        template <typename U>
-        std::vector<Core::Memory::ObserverPtr<U>> GetAllObserver() const
-        {
-            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
-
-            std::vector<Core::Memory::ObserverPtr<U>> result;
-            auto raw_span = objects.GetAll();
-            result.reserve(raw_span.size());
-
-            for (const auto &ptr : raw_span)
-            {
-                if (ptr && Core::Cast::ReCast<U *>(ptr.Get()) != nullptr)
-                {
-                    result.emplace_back(ptr);
-                }
-            }
-            return result;
-        }
-
-        auto GetAllWithID() noexcept
+        auto GetAllRef() noexcept
         {
             auto ids = objects.GetAllIDs();
             auto datas = objects.GetAll();
@@ -161,7 +114,7 @@ namespace RandomEngine::Systems::ResourceSystems
         }
 
         template <typename U>
-        [[nodiscard]] auto GetAllWithID()
+        [[nodiscard]] auto GetAllRef() noexcept
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
@@ -174,7 +127,7 @@ namespace RandomEngine::Systems::ResourceSystems
                                          { return {ids[i], *Core::Cast::ReCast<U *>(datas[i].Get())}; });
         }
 
-        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> GetAllObserverWithID() const
+        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> GetAllObserver() const
         {
             std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<Core::Objects::BaseObject>>> result;
             auto ids = objects.GetAllIDs();
@@ -192,7 +145,7 @@ namespace RandomEngine::Systems::ResourceSystems
         }
 
         template <typename U>
-        std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<U>>> GetAllObserverWithID() const
+        std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::ObserverPtr<U>>> GetAllObserver() const
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
 
@@ -211,17 +164,99 @@ namespace RandomEngine::Systems::ResourceSystems
             return result;
         }
 
+        // 批量加锁：一次快照 + 一次按桶升序的批量加锁，返回整批已锁对象
+        // 相比 GetAllObserver：无逐对象 ObserverPtr 的原子引用计数，也无逐个 GetLocked 的往返
+        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<Core::Objects::BaseObject>>> GetAllLocked()
+        {
+            using U = Core::Objects::BaseObject;
+            using AdoptTag = typename Core::Memory::IdLockedPtr<U>::adopt_lock_t;
+
+            const uint64_t token = Core::Memory::ThisThreadToken();
+
+            const auto ids = objects.GetAllIDs();
+            const auto datas = objects.GetAll();
+
+            std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<U>>> result;
+            result.reserve(datas.size());
+
+            {
+                // 先按桶号升序去重占住全部桶，杜绝与其它线程 ABBA 死锁
+                auto bucket_guard = LockOf(ids);
+
+                for (size_t i = 0; i < datas.size(); ++i)
+                {
+                    if (!datas[i])
+                        continue;
+
+                    // 桶锁已是本线程持有，这里只是递归叠加一层深度，无竞争
+                    Core::Memory::IdLock &lock = GetIdLock(ids[i]);
+                    lock.Lock(token);
+                    result.emplace_back(ids[i], Core::Memory::IdLockedPtr<U>(datas[i].Get(), lock, token, AdoptTag{}));
+                }
+            }
+
+            return result;
+        }
+
+        template <typename U>
+        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<U>>> GetAllLocked()
+        {
+            static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
+            using AdoptTag = typename Core::Memory::IdLockedPtr<U>::adopt_lock_t;
+
+            const uint64_t token = Core::Memory::ThisThreadToken();
+
+            std::shared_lock<std::shared_mutex> struct_lock(m_structure_mutex);
+
+            const auto ids = objects.GetAllIDs();
+            const auto datas = objects.GetAll();
+
+            // 只收集匹配的对象，避免去锁与本次调用无关的桶
+            std::vector<std::pair<Core::Config::ObjectIDType, U *>> matched;
+            std::vector<Core::Config::ObjectIDType> matched_ids;
+            matched.reserve(datas.size());
+            matched_ids.reserve(datas.size());
+
+            for (size_t i = 0; i < datas.size(); ++i)
+            {
+                if (!datas[i])
+                    continue;
+
+                if (U *raw = Core::Cast::ReCast<U *>(datas[i].Get()))
+                {
+                    matched.emplace_back(ids[i], raw);
+                    matched_ids.push_back(ids[i]);
+                }
+            }
+
+            std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<U>>> result;
+            result.reserve(matched.size());
+
+            {
+                auto bucket_guard = LockOf(matched_ids);
+
+                for (const auto &[id, raw] : matched)
+                {
+                    Core::Memory::IdLock &lock = GetIdLock(id);
+                    lock.Lock(token);
+                    result.emplace_back(id, Core::Memory::IdLockedPtr<U>(raw, lock, token, AdoptTag{}));
+                }
+            }
+
+            return result;
+        }
+
         // 添加对象
         template <typename U>
         Core::Config::ObjectIDType Add(U &&object)
         {
+            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex);
             using RawType = std::decay_t<U>;
             static_assert(std::is_base_of_v<Core::Objects::BaseObject, RawType>,
                           "U must derive from BaseObject!");
 
             Core::Memory::MasterPtr<Core::Objects::BaseObject> ptr(new RawType(std::move(object)));
 
-            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex);
             Core::Config::ObjectIDType id = objects.AllocateID();
             ptr->id = id;
             auto guard = LockOf(id);
@@ -243,10 +278,10 @@ namespace RandomEngine::Systems::ResourceSystems
 
         std::vector<Core::Config::ObjectIDType> Add(std::vector<Core::Memory::MasterPtr<Core::Objects::BaseObject>> &&container)
         {
+            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex);
             std::vector<Core::Config::ObjectIDType> ids;
             ids.reserve(container.size());
-
-            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex);
+ 
             for (auto &ptr : container)
             {
                 if (!ptr)
@@ -258,17 +293,33 @@ namespace RandomEngine::Systems::ResourceSystems
                 objects.Insert(id, std::move(ptr));
                 ids.push_back(id);
             }
-
+            
             return ids;
         }
 
         // 删除对象
         bool Delete(const Core::Config::ObjectIDType id)
         {
-            std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex); 
-            auto guard = LockOf(id);
-            bool ok = objects.Delete(id);
-            return ok;
+            Core::Memory::MasterPtr<Core::Objects::BaseObject> retired;
+
+            {
+                std::unique_lock<std::shared_mutex> struct_lock(m_structure_mutex);
+                auto guard = LockOf(id);
+
+                auto *stored = objects.GetPtr(id);
+                if (!stored)
+                    return false;
+
+                // 先移出所有权，再删槽位。
+                retired = std::move(*stored);
+
+                objects.Delete(id);
+            }
+
+            // 结构锁和 IdLock 均已释放，等待 Reader 退出后析构。
+            retired.Reset();
+
+            return true;
         }
 
         // 加锁
@@ -286,7 +337,7 @@ namespace RandomEngine::Systems::ResourceSystems
             for (auto id : ids)
                 buckets.push_back(static_cast<uint32_t>(static_cast<size_t>(id) % m_locks.size()));
 
-            return Core::Memory::IdLockGuard(m_locks, buckets, Core::Memory::ThisThreadToken());
+            return Core::Memory::IdLockGuard(m_locks, std::move(buckets), Core::Memory::ThisThreadToken());
         }
 
     public:

@@ -37,7 +37,7 @@ namespace RandomEngine::Systems::RuntimeSystems
     void LogicUpdateSystem::Run(System &system)
     {
         auto [added, deleted] = system.resource_system.behavior_system
-            .FetchBehaviorChangesToRuntimeSystem<Core::Behaviors::ILogicUpdateBehavior>();
+            .FetchBehaviorsChangesToRuntimeSystem<Core::Behaviors::ILogicUpdateBehavior>();
 
         if (!added.empty() || !deleted.empty())
         {

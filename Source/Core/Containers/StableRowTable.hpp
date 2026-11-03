@@ -1,4 +1,5 @@
 #pragma once
+#include "Core/Memory/MasterPtr.hpp"
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -7,6 +8,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+#include <utility>
 
 namespace RandomEngine::Core::Containers
 {
@@ -34,8 +36,33 @@ namespace RandomEngine::Core::Containers
     {
     };
 
+    // 所有权列(MasterPtr)不拷贝值,但可以用其 Get() 的裸指针做索引键
+    template <typename U>
+    struct IsMasterPtr : std::false_type
+    {
+    };
+    template <typename U>
+    struct IsMasterPtr<Core::Memory::MasterPtr<U>> : std::true_type
+    {
+    };
+
+    // 索引键类型:普通列 = 列值本身;MasterPtr 列 = 裸指针
+    template <typename U>
+    struct IdxKeyOf
+    {
+        using type = ValT<U>;
+    };
+    template <typename U>
+    struct IdxKeyOf<Core::Memory::MasterPtr<U>>
+    {
+        using type = U *;
+    };
+    template <typename U>
+    using IdxKeyT = typename IdxKeyOf<U>::type;
+
     template <typename T>
-    struct IsIdx : std::bool_constant<std::is_copy_constructible_v<ValT<T>>>
+    struct IsIdx : std::bool_constant<std::is_copy_constructible_v<ValT<T>> ||
+                                      IsMasterPtr<ValT<T>>::value>
     {
     };
 
@@ -45,7 +72,7 @@ namespace RandomEngine::Core::Containers
     template <typename T, typename H, typename... R>
     constexpr size_t ColIndexOfImpl()
     {
-        if constexpr (std::is_same_v<ValT<T>, ValT<H>>)
+        if constexpr (std::is_same_v<IdxKeyT<T>, IdxKeyT<H>>)
             return 0;
         else
         {
@@ -93,8 +120,8 @@ namespace RandomEngine::Core::Containers
         uint32_t count_ = 0, free_head_ = npos;
 
         template <typename U>
-        using ColMap = std::unordered_map<ValT<U>, std::vector<Row *>>;
-        std::tuple<ColMap<TS>...> idx_; // 值 → 行指针桶(重复值=多元素)
+        using ColMap = std::unordered_map<IdxKeyT<U>, std::vector<Row *>>;
+        std::tuple<ColMap<TS>...> idx_; // 键 → 行指针桶(重复键=多元素)
 
         template <typename>
         using RowVec = std::vector<Row *>; // ★新增:让 TS 能进模式
@@ -104,11 +131,23 @@ namespace RandomEngine::Core::Containers
         template <size_t I>
         using Col = std::tuple_element_t<I, std::tuple<TS...>>;
 
+        // 列值 → 索引键:optional 取值,MasterPtr 取裸指针,其余原样
+        template <size_t I>
+        static IdxKeyT<Col<I>> KeyOf(const Col<I> &raw)
+        {
+            if constexpr (IsOpt<Col<I>>::value)
+                return *raw;
+            else if constexpr (IsMasterPtr<Col<I>>::value)
+                return raw.Get();
+            else
+                return raw;
+        }
+
         template <size_t I>
         void AttachOne(Row *r)
         {
             if constexpr (!IsIdx<Col<I>>::value)
-            { // 所有权列:不进任何索引
+            { // 非索引列:不进任何索引
                 r->back[I] = npos;
                 r->back_null[I] = npos;
             }
@@ -131,6 +170,19 @@ namespace RandomEngine::Core::Containers
                         r->back_null[I] = (uint32_t)nv.size();
                         nv.push_back(r);
                     }
+                }
+                else if constexpr (IsMasterPtr<Col<I>>::value)
+                {
+                    if (!raw)
+                    { // 空所有权列:无键可挂
+                        r->back[I] = npos;
+                        r->back_null[I] = npos;
+                        return;
+                    }
+                    auto &vec = std::get<I>(idx_)[raw.Get()];
+                    r->back[I] = (uint32_t)vec.size();
+                    r->back_null[I] = npos;
+                    vec.push_back(r);
                 }
                 else
                 {
@@ -155,7 +207,7 @@ namespace RandomEngine::Core::Containers
         {
             if constexpr (!IsIdx<Col<I>>::value)
             {
-                // 所有权列:无索引可摘
+                // 非索引列:无索引可摘
             }
             else
             {
@@ -175,15 +227,12 @@ namespace RandomEngine::Core::Containers
                         return;
                     }
                 }
-                auto key = [&]() -> ValT<Col<I>> &
-                {
-                    if constexpr (IsOpt<Col<I>>::value)
-                        return *raw;
-                    else
-                        return raw;
-                }();
+                if (r->back[I] == npos) // 空 MasterPtr:从未进索引
+                    return;
                 auto &m = std::get<I>(idx_);
-                auto it = m.find(key);
+                auto it = m.find(KeyOf<I>(raw));
+                if (it == m.end())
+                    return;
                 auto &vec = it->second;
                 uint32_t p = r->back[I];
                 if (p != vec.size() - 1)
@@ -418,6 +467,22 @@ namespace RandomEngine::Core::Containers
             static_assert(IsOpt<std::tuple_element_t<I, std::tuple<TS...>>>::value,
                           "该列非 optional,不存在 null");
             return std::get<I>(nulls_); // 拷贝 null 链
+        }
+
+        // 单行定位:键 → 行指针,均摊 O(1) 且零分配
+        template <typename U>
+        Row *FindRow(const U &u)
+        {
+            constexpr size_t I = ColIndexOf<U>();
+            static_assert(I != NOT_FOUND, "FindRow<U>: U 必须是本表列类型");
+            static_assert(IsIdx<std::tuple_element_t<I, std::tuple<TS...>>>::value,
+                          "FindRow<U>: 该列不可作为查询键");
+            auto &m = std::get<I>(idx_);
+            auto it = m.find(u);
+            if (it == m.end() || it->second.empty())
+                return nullptr;
+            Row *r = it->second.front();
+            return (r && r->alive) ? r : nullptr;
         }
 
         // 遍历
