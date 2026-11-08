@@ -5,7 +5,6 @@
 #include "Core/Memory/ObserverPtr.hpp"
 #include "Behaviors/BaseBehavior/ISystemUpdateBehavior.hpp"
 #include "Core/Memory/IdLock.hpp"
-#include "Core/Memory/IdLockedPtr.hpp"
 #include "Core/Cast/Cast.hpp"
 #include "Systems/ISystem.hpp"
 #include "Config.hpp"
@@ -14,6 +13,7 @@
 #include <shared_mutex>
 #include <span>
 #include <ranges>
+#include <utility>
 #include <vector>
 #include "Core/Memory/IdLockGuard.hpp"
 
@@ -50,33 +50,66 @@ namespace RandomEngine::Systems::ResourceSystems
             return Core::Cast::ReCast<U &>(GetRef(id));
         }
 
-        auto GetLocked(Core::Config::ObjectIDType id)
-            -> Core::Memory::IdLockedPtr<Core::Objects::BaseObject>
+        // 回调形态：进回调前加锁、出回调后解锁，锁的作用域严格等于回调体。
+        // 因此本线程在回调体内最多持有一把 IdLock，「持有一把、再去等另一把」
+        // 这个 ABBA 的必要前提写不出来。多对象交互按作用域串行调用多次即可；
+        // 若必须同一时刻看到两者状态，用 LockOf(span) 一次给全。
+        // 返回 false 表示对象不存在或类型不符，回调不会执行。
+        template <typename Fn>
+        bool GetLocked(Core::Config::ObjectIDType id, Fn &&fn)
         {
             Core::Memory::IdLock &lock = GetIdLock(id);
             const uint64_t token = Core::Memory::ThisThreadToken();
             lock.Lock(token);
-            if (auto *mp = objects.GetPtr(id))
-                return {mp->Get(), lock, token, typename Core::Memory::IdLockedPtr<Core::Objects::BaseObject>::adopt_lock_t{}};
+
+            auto *mp = objects.GetPtr(id);
+            if (!mp)
+            {
+                lock.Unlock(token);
+                return false;
+            }
+
+            try
+            {
+                std::forward<Fn>(fn)(*mp->Get());
+            }
+            catch (...)
+            {
+                lock.Unlock(token);
+                throw;
+            }
+
             lock.Unlock(token);
-            return {};
+            return true;
         }
 
-        template <typename U>
-        auto GetLocked(Core::Config::ObjectIDType id) -> Core::Memory::IdLockedPtr<U>
+        template <typename U, typename Fn>
+        bool GetLocked(Core::Config::ObjectIDType id, Fn &&fn)
         {
             Core::Memory::IdLock &lock = GetIdLock(id);
             const uint64_t token = Core::Memory::ThisThreadToken();
             lock.Lock(token);
-            if (auto *mp = objects.GetPtr(id))
+
+            auto *mp = objects.GetPtr(id);
+            U *raw = mp ? Core::Cast::ReCast<U *>(mp->Get()) : nullptr;
+            if (!raw)
             {
-                if (U *raw = Core::Cast::ReCast<U *>(mp->Get()))
-                    return {raw, lock, token, typename Core::Memory::IdLockedPtr<U>::adopt_lock_t{}};
                 lock.Unlock(token);
-                return {};
+                return false;
             }
+
+            try
+            {
+                std::forward<Fn>(fn)(*raw);
+            }
+            catch (...)
+            {
+                lock.Unlock(token);
+                throw;
+            }
+
             lock.Unlock(token);
-            return {};
+            return true;
         }
 
         Core::Memory::ObserverPtr<Core::Objects::BaseObject> GetObserver(const Core::Config::ObjectIDType &id)
@@ -164,49 +197,31 @@ namespace RandomEngine::Systems::ResourceSystems
             return result;
         }
 
-        // 批量加锁：一次快照 + 一次按桶升序的批量加锁，返回整批已锁对象
-        // 相比 GetAllObserver：无逐对象 ObserverPtr 的原子引用计数，也无逐个 GetLocked 的往返
-        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<Core::Objects::BaseObject>>> GetAllLocked()
+        // 批量回调：一次快照 + 一次按桶升序的批量加锁，锁的作用域严格等于整轮回调。
+        // 与 GetAllObserver 相比：无逐对象 ObserverPtr 的原子引用计数，也无逐个 GetLocked 的往返。
+        // 回调体内不得再取任何锁，否则会重新引入「持有一把、再去等另一把」。
+        template <typename Fn>
+        void GetAllLocked(Fn &&fn)
         {
-            using U = Core::Objects::BaseObject;
-            using AdoptTag = typename Core::Memory::IdLockedPtr<U>::adopt_lock_t;
-
-            const uint64_t token = Core::Memory::ThisThreadToken();
-
             const auto ids = objects.GetAllIDs();
             const auto datas = objects.GetAll();
 
-            std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<U>>> result;
-            result.reserve(datas.size());
+            // 先按桶号升序去重占住全部桶，杜绝与其它线程 ABBA 死锁
+            auto bucket_guard = LockOf(ids);
 
+            for (size_t i = 0; i < datas.size(); ++i)
             {
-                // 先按桶号升序去重占住全部桶，杜绝与其它线程 ABBA 死锁
-                auto bucket_guard = LockOf(ids);
+                if (!datas[i])
+                    continue;
 
-                for (size_t i = 0; i < datas.size(); ++i)
-                {
-                    if (!datas[i])
-                        continue;
-
-                    // 桶锁已是本线程持有，这里只是递归叠加一层深度，无竞争
-                    Core::Memory::IdLock &lock = GetIdLock(ids[i]);
-                    lock.Lock(token);
-                    result.emplace_back(ids[i], Core::Memory::IdLockedPtr<U>(datas[i].Get(), lock, token, AdoptTag{}));
-                }
+                std::forward<Fn>(fn)(ids[i], *datas[i].Get());
             }
-
-            return result;
         }
 
-        template <typename U>
-        [[nodiscard]] std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<U>>> GetAllLocked()
+        template <typename U, typename Fn>
+        void GetAllLocked(Fn &&fn)
         {
             static_assert(std::is_polymorphic_v<U>, "U must be a polymorphic type!");
-            using AdoptTag = typename Core::Memory::IdLockedPtr<U>::adopt_lock_t;
-
-            const uint64_t token = Core::Memory::ThisThreadToken();
-
-            std::shared_lock<std::shared_mutex> struct_lock(m_structure_mutex);
 
             const auto ids = objects.GetAllIDs();
             const auto datas = objects.GetAll();
@@ -229,21 +244,12 @@ namespace RandomEngine::Systems::ResourceSystems
                 }
             }
 
-            std::vector<std::pair<Core::Config::ObjectIDType, Core::Memory::IdLockedPtr<U>>> result;
-            result.reserve(matched.size());
+            auto bucket_guard = LockOf(matched_ids);
 
+            for (const auto &[id, raw] : matched)
             {
-                auto bucket_guard = LockOf(matched_ids);
-
-                for (const auto &[id, raw] : matched)
-                {
-                    Core::Memory::IdLock &lock = GetIdLock(id);
-                    lock.Lock(token);
-                    result.emplace_back(id, Core::Memory::IdLockedPtr<U>(raw, lock, token, AdoptTag{}));
-                }
+                std::forward<Fn>(fn)(id, *raw);
             }
-
-            return result;
         }
 
         // 添加对象

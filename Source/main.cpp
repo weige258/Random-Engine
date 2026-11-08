@@ -16,6 +16,8 @@
 #include <cmath>
 #include <array>
 #include "Core/Time/Timer.hpp"
+#include "Core/Graphs/BasePort.hpp"
+
 
 using namespace RandomEngine::Core::Behaviors;
 using namespace RandomEngine::Core::Jobs;
@@ -202,160 +204,178 @@ int main()
 
 void MovementBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    data->velocity += data->acceleration * delta_time;
-    double speed_sq = LengthSquared(data->velocity);
-    if (speed_sq > data->max_speed * data->max_speed)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        data->velocity = Normalize(data->velocity) * data->max_speed;
-    }
-    data->position += data->velocity * delta_time;
-    data->acceleration = data->force / data->mass;
-    data->force = Vec3d(0.0f, 0.0f, 0.0f);
+        data.velocity += data.acceleration * delta_time;
+        double speed_sq = LengthSquared(data.velocity);
+        if (speed_sq > data.max_speed * data.max_speed)
+        {
+            data.velocity = Normalize(data.velocity) * data.max_speed;
+        }
+        data.position += data.velocity * delta_time;
+        data.acceleration = data.force / data.mass;
+        data.force = Vec3d(0.0f, 0.0f, 0.0f);
+    });
     g_counters.movement.fetch_add(1, std::memory_order_relaxed);
 }
 
 void CollisionBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    Vec3f neighbor_offset(data->position[1] * 0.3f - data->position[0] * 0.1f,
-                          data->position[2] * 0.2f - data->position[1] * 0.15f,
-                          data->position[0] * 0.25f - data->position[2] * 0.12f);
-    float dist_sq = LengthSquared(neighbor_offset);
-    float min_dist = data->radius * 2.0f;
-    if (dist_sq < min_dist * min_dist && dist_sq > 1e-8f)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        float dist = std::sqrt(dist_sq);
-        Vec3d normal = neighbor_offset / dist;
-        float overlap = min_dist - dist;
-        data->force += normal * (overlap * 500.0f);
-        Vec3d rel_vel = data->velocity;
-        double vel_along_normal = Dot(rel_vel, normal);
-        if (vel_along_normal < 0.0f)
+        Vec3f neighbor_offset(data.position[1] * 0.3f - data.position[0] * 0.1f,
+                              data.position[2] * 0.2f - data.position[1] * 0.15f,
+                              data.position[0] * 0.25f - data.position[2] * 0.12f);
+        float dist_sq = LengthSquared(neighbor_offset);
+        float min_dist = data.radius * 2.0f;
+        if (dist_sq < min_dist * min_dist && dist_sq > 1e-8f)
         {
-            double j = -(1.0f + data->restitution) * vel_along_normal;
-            j /= (1.0f / data->mass + 1.0f / data->mass);
-            data->velocity += normal * (j / data->mass);
+            float dist = std::sqrt(dist_sq);
+            Vec3d normal = neighbor_offset / dist;
+            float overlap = min_dist - dist;
+            data.force += normal * (overlap * 500.0f);
+            Vec3d rel_vel = data.velocity;
+            double vel_along_normal = Dot(rel_vel, normal);
+            if (vel_along_normal < 0.0f)
+            {
+                double j = -(1.0f + data.restitution) * vel_along_normal;
+                j /= (1.0f / data.mass + 1.0f / data.mass);
+                data.velocity += normal * (j / data.mass);
+            }
         }
-    }
+    });
     g_counters.collision.fetch_add(1, std::memory_order_relaxed);
 }
 
 void BounceBehavior::FixUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    constexpr float floor_y = -50.0f;
-    constexpr float ceil_y = 50.0f;
-    if (data->position.Y() - data->radius < floor_y)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        data->position.SetY(floor_y + data->radius);
-        data->velocity.SetY(-data->velocity.Y() * data->restitution);
-        data->velocity.SetX(data->velocity.X() * 0.98f);
-        data->velocity.SetZ(data->velocity.Z() * 0.98f);
-    }
-    if (data->position.Y() + data->radius > ceil_y)
-    {
-        data->position.SetY(ceil_y - data->radius);
-        data->velocity.SetY(-data->velocity.Y() * data->restitution);
-    }
+        constexpr float floor_y = -50.0f;
+        constexpr float ceil_y = 50.0f;
+        if (data.position.Y() - data.radius < floor_y)
+        {
+            data.position.SetY(floor_y + data.radius);
+            data.velocity.SetY(-data.velocity.Y() * data.restitution);
+            data.velocity.SetX(data.velocity.X() * 0.98f);
+            data.velocity.SetZ(data.velocity.Z() * 0.98f);
+        }
+        if (data.position.Y() + data.radius > ceil_y)
+        {
+            data.position.SetY(ceil_y - data.radius);
+            data.velocity.SetY(-data.velocity.Y() * data.restitution);
+        }
+    });
     g_counters.bounce.fetch_add(1, std::memory_order_relaxed);
 }
 
 void DragBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
 
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    double speed = std::sqrt(LengthSquared(data->velocity));
-    if (speed > 1e-6f)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        Vec3d drag_force = Normalize(data->velocity) * (-data->drag * speed * speed);
-        data->force += drag_force;
-    }
+        double speed = std::sqrt(LengthSquared(data.velocity));
+        if (speed > 1e-6f)
+        {
+            Vec3d drag_force = Normalize(data.velocity) * (-data.drag * speed * speed);
+            data.force += drag_force;
+        }
+    });
     g_counters.drag.fetch_add(1, std::memory_order_relaxed);
 }
 
 void GravityBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    data->force += data->gravity * data->mass;
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
+    {
+        data.force += data.gravity * data.mass;
+    });
     g_counters.gravity.fetch_add(1, std::memory_order_relaxed);
 }
 
 void RotationBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    double angular_speed = std::sqrt(LengthSquared(data->angular_velocity));
-    if (angular_speed > 1e-8f)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        Vec3d angular_drag = Normalize(data->angular_velocity) * (-0.5f * angular_speed);
-        data->torque += angular_drag;
-    }
-    data->angular_velocity += (data->torque / data->moment_of_inertia) * delta_time;
-    data->torque = Vec3d(0.0f, 0.0f, 0.0f);
+        double angular_speed = std::sqrt(LengthSquared(data.angular_velocity));
+        if (angular_speed > 1e-8f)
+        {
+            Vec3d angular_drag = Normalize(data.angular_velocity) * (-0.5f * angular_speed);
+            data.torque += angular_drag;
+        }
+        data.angular_velocity += (data.torque / data.moment_of_inertia) * delta_time;
+        data.torque = Vec3d(0.0f, 0.0f, 0.0f);
+    });
     g_counters.rotation.fetch_add(1, std::memory_order_relaxed);
 }
 
 void BoundaryBehavior::FixUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    constexpr float bound = 100.0f;
-    constexpr float k_wall = 1000.0f;
-    for (int i = 0; i < 3; ++i)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        if (data->position[i] > bound)
+        constexpr float bound = 100.0f;
+        constexpr float k_wall = 1000.0f;
+        for (int i = 0; i < 3; ++i)
         {
-            data->force[i] -= k_wall * (data->position[i] - bound);
-            data->velocity[i] *= -0.5f;
+            if (data.position[i] > bound)
+            {
+                data.force[i] -= k_wall * (data.position[i] - bound);
+                data.velocity[i] *= -0.5f;
+            }
+            else if (data.position[i] < -bound)
+            {
+                data.force[i] -= k_wall * (data.position[i] + bound);
+                data.velocity[i] *= -0.5f;
+            }
         }
-        else if (data->position[i] < -bound)
-        {
-            data->force[i] -= k_wall * (data->position[i] + bound);
-            data->velocity[i] *= -0.5f;
-        }
-    }
+    });
     g_counters.boundary.fetch_add(1, std::memory_order_relaxed);
 }
 
 void ForceAccumBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
 
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-    Vec3d spring_anchor(0.0f, 0.0f, 0.0f);
-    Vec3d displacement = data->position - spring_anchor;
-    double dist = std::sqrt(LengthSquared(displacement));
-    if (dist > 1e-6f)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        Vec3d spring_force = Normalize(displacement) * (-2.0f * dist);
-        data->force += spring_force;
-    }
+        Vec3d spring_anchor(0.0f, 0.0f, 0.0f);
+        Vec3d displacement = data.position - spring_anchor;
+        double dist = std::sqrt(LengthSquared(displacement));
+        if (dist > 1e-6f)
+        {
+            Vec3d spring_force = Normalize(displacement) * (-2.0f * dist);
+            data.force += spring_force;
+        }
+    });
     g_counters.force_accum.fetch_add(1, std::memory_order_relaxed);
 }
 
 void SpringBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-
-    Vec3d neighbor_pos(data->position[1] * 0.5f + 10.0f,
-                       data->position[2] * 0.3f - 5.0f,
-                       data->position[0] * 0.4f + 8.0f);
-    Vec3d diff = neighbor_pos - data->position;
-    double rest_length = 5.0f;
-    double current_length = std::sqrt(LengthSquared(diff));
-    if (current_length > 1e-6f)
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
     {
-        double stretch = current_length - rest_length;
-        Vec3d spring_f = Normalize(diff) * (3.0f * stretch);
-        data->force += spring_f;
-    }
+        Vec3d neighbor_pos(data.position[1] * 0.5f + 10.0f,
+                           data.position[2] * 0.3f - 5.0f,
+                           data.position[0] * 0.4f + 8.0f);
+        Vec3d diff = neighbor_pos - data.position;
+        double rest_length = 5.0f;
+        double current_length = std::sqrt(LengthSquared(diff));
+        if (current_length > 1e-6f)
+        {
+            double stretch = current_length - rest_length;
+            Vec3d spring_f = Normalize(diff) * (3.0f * stretch);
+            data.force += spring_f;
+        }
+    });
     g_counters.spring.fetch_add(1, std::memory_order_relaxed);
 }
 
 void DampingBehavior::LogicUpdate(RandomEngine::Core::Config::TimeType delta_time, RandomEngine::Systems::System &system)
 {
-    auto data = system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id);
-
-    data->force -= data->velocity * 0.8f;
-    data->torque -= data->angular_velocity * 0.3f;
+    system.resource_system.object_system.GetLocked<TestEntity>(bind_object_id, [&](TestEntity &data)
+    {
+        data.force -= data.velocity * 0.8f;
+        data.torque -= data.angular_velocity * 0.3f;
+    });
     g_counters.damping.fetch_add(1, std::memory_order_relaxed);
 }
 

@@ -36,7 +36,12 @@ namespace RandomEngine::Core::Memory
 
         void AddOwnerRef() noexcept
         {
-            state.fetch_add(OwnerUnit, std::memory_order_relaxed);
+            const uint64_t old = state.fetch_add(OwnerUnit, std::memory_order_relaxed);
+
+            // OwnerRef 只有 31 位，再 +1 会进位到 bit63 伪造 ClosingBit。
+            // 复用 fetch_add 的返回值做溢出哨兵，零额外原子开销。
+            if ((old & OwnerMask) == OwnerMask)
+                std::terminate();
         }
 
         void ReleaseOwnerRef() noexcept

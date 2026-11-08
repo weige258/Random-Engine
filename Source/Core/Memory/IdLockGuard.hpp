@@ -52,7 +52,9 @@ namespace RandomEngine::Core::Memory
 
             if (m_single)
             {
-                m_pool->at(m_single_bucket).Unlock(m_token);
+                // 构造时已验证 bucket < pool.size()，此处不需要再查边界；
+                // Release() 是 noexcept，at() 抛异常会直接 terminate。
+                (*m_pool)[m_single_bucket].Unlock(m_token);
             }
             else
             {

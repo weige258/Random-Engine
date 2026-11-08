@@ -7,18 +7,18 @@ namespace RandomEngine::Systems::ResourceSystems
             const Core::Memory::ObserverPtr<
                 Core::Behaviors::BaseBehavior> &behavior)
         {
-            if (!behavior)
-                return false;
-
-            auto *target = behavior.Get();
-
-            if (!target)
-                return false;
-
             std::unique_lock<std::shared_mutex> lock(
                 m_structure_mutex);
 
-            // 以裸指针为键直接命中行,均摊 O(1),不再全表扫描
+            // 必须在结构锁内先取租约：Get() 到 FindRow() 之间存在窗口，
+            // 对象可能已被释放，地址被复用后会命中另一行。
+            auto lease = behavior.Lock();
+
+            if (!lease)
+                return false;
+
+            auto *target = lease.Get();
+
             BehaviorRow *found_row = all_behaviors.FindRow(target);
 
             if (!found_row)

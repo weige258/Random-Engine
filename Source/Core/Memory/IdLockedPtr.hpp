@@ -17,12 +17,12 @@ namespace RandomEngine::Core::Memory
         // 获取锁时的原始 Token。
         uint64_t m_token = 0;
 
+        // 校验必须无条件生效：Release 构建下也不能退化成空函数，
+        // 否则跨线程转移后会以旧 token 解锁，m_depth 成为跨线程 data race。
         void CheckThread() const noexcept
         {
-#ifndef NDEBUG
             if (m_lock && ThisThreadToken() != m_token)
                 std::terminate();
-#endif
         }
 
         void Release() noexcept
@@ -55,10 +55,8 @@ namespace RandomEngine::Core::Memory
         {
             if (token == 0)
                 std::terminate();
-#ifndef NDEBUG
             if (token != ThisThreadToken())
                 std::terminate();
-#endif
         }
 
         // 兼容原来 {ptr, lock, adopt_lock_t{}} 的调用方式。

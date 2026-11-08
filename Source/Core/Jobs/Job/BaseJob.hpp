@@ -85,9 +85,11 @@ namespace RandomEngine::Core::Jobs::Job
                      Detail::SlotCallable<SlotType, Args...>)
         void Execute(Args &&...args) const
         {
-            if (m_behavior.Lock())
+            // 必须把 ScopedRef 绑定到具名变量：写在 if 条件里的临时对象
+            // 会在条件求值结束时析构，锁在函数体执行前就已释放。
+            if (auto lease = m_behavior.Lock())
             {
-                (m_behavior.Get()->*SlotType::MethodPtr)(std::forward<Args>(args)...);
+                (lease.Get()->*SlotType::MethodPtr)(std::forward<Args>(args)...);
             }
         }
 
