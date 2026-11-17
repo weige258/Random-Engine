@@ -3,7 +3,9 @@
 namespace RandomEngine::Core::Graphs
 {
 
-    struct BaseNode{
+    struct BaseNode
+    {
+        BaseNode();
 
         virtual ~BaseNode();
     };

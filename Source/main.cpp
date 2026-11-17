@@ -111,6 +111,11 @@ static RandomEngine::Core::Time::Timer timer;
 
 int main()
 {
+    RandomEngine::Core::Graphs::BaseNode node;
+    RandomEngine::Core::Graphs::BaseOutPort port(node);
+    RandomEngine::Core::Graphs::BaseInPort in_port(node);
+    port.StaticConnect(in_port);
+    
     RandomEngine::Engine::Application app;
     app.Init();
     timer.Start();

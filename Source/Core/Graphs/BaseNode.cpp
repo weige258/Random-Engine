@@ -2,7 +2,7 @@
 
 namespace RandomEngine::Core::Graphs
 {
+    BaseNode::BaseNode() = default;
 
-    
     BaseNode::~BaseNode() = default;
 }
