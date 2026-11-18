@@ -79,9 +79,9 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "G
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO  "${_CXX_BASE} -g"        CACHE STRING "Clang/GCC RelWithDebInfo flags" FORCE)
     set(CMAKE_CXX_FLAGS_MINSIZEREL      "${_CXX_BASE_SMALL}"     CACHE STRING "Clang/GCC MinSizeRel flags"    FORCE)
 
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE        "-flto" CACHE STRING "Clang/GCC Release linker"          FORCE)
-    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO  "-flto" CACHE STRING "Clang/GCC RelWithDebInfo linker"  FORCE)
-    set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL     "-flto" CACHE STRING "Clang/GCC MinSizeRel linker"      FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE        "-flto=auto" CACHE STRING "Clang/GCC Release linker"          FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO  "-flto=auto" CACHE STRING "Clang/GCC RelWithDebInfo linker"  FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL     "-flto=auto" CACHE STRING "Clang/GCC MinSizeRel linker"      FORCE)
 endif()
 
 # ---------------------------------------------------------------------------
