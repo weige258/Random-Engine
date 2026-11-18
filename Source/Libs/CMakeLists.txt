@@ -12,10 +12,10 @@ set(SDL_STATIC ON  CACHE BOOL "" FORCE)
 #SDL
 add_subdirectory(SDL)
 
-# SDL 是第三方静态库，对它做 LTO 优化收益很小，但链接期要为它跑大量 LTRANS 任务，
-# 是 Release 每次链接慢的主要原因。这里让它按普通 -O3 编译（不生成 LTO 字节码），
-# 链接器可以混合处理普通对象与 LTO 对象，链接时间大幅下降。
-if(TARGET SDL3-static)
+# 让 SDL 不参与 LTO：它是第三方静态库，跨模块内联收益很小，但链接期要为它跑大量
+# LTRANS 任务（MinGW 上是串行的），是 Release 每次链接慢的主要原因。
+# 只在 GCC 下加，MSVC/Clang 完全不受影响（MSVC 用 /GL，且不认 -fno-lto）。
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND TARGET SDL3-static)
     target_compile_options(SDL3-static PRIVATE
         $<$<CONFIG:Release,RelWithDebInfo,MinSizeRel>:-fno-lto>)
 endif()
