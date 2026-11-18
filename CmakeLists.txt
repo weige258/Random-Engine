@@ -4,6 +4,18 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# 项目自身代码的警告开关。
+# add_compile_options 是目录级作用域，会随 add_subdirectory 继承到 SDL 等第三方源码，
+# 因此改为变量 + target_compile_options，只作用于我们自己的 target。
+set(RE_WARNING_FLAGS)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    set(RE_WARNING_FLAGS -Wall -Wextra)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # -Wc++98-compat 系列是 Clang 独有 warning group，GCC 无此选项（会报 unrecognized command-line option）
+        list(APPEND RE_WARNING_FLAGS -Wno-c++98-compat -Wno-c++98-compat-pedantic)
+    endif()
+endif()
+
 # ===========================================================================
 # 编译配置
 # 四种配置各司其职：
@@ -37,8 +49,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     # Clang (非 MSVC 兼容模式) / MinGW GCC / Linux GCC —— 共用一套
-    # -Wno-c++98-compat 关闭 C++98 兼容性警告（我们用 C++23），避免 IntelliSense 误标黄
-    add_compile_options(-Wall -Wextra -Wno-c++98-compat -Wno-c++98-compat-pedantic)
+    # 警告开关统一由上面的 RE_WARNING_FLAGS 变量管理，此处不再全局添加
 
     if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # Clang on Windows (MSVC ABI) —— 用 /MT 静态链接 UCRT，避免 lld-link 的
@@ -74,3 +85,12 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "G
 endif()
 
 add_subdirectory(Source)
+
+# 警告开关只施加到项目自有的 target。
+# 不用 add_compile_options，因为它是目录级作用域，会随 add_subdirectory 继承进 SDL 等
+# 第三方源码，导致大量 -Wunused-parameter / -Wcast-function-type 噪音。
+foreach(_target IN ITEMS Platform Core Systems Engine RandomEngine)
+    if(TARGET ${_target})
+        target_compile_options(${_target} PRIVATE ${RE_WARNING_FLAGS})
+    endif()
+endforeach()

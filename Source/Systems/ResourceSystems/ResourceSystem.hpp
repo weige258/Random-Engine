@@ -21,7 +21,7 @@ namespace RandomEngine::Systems::ResourceSystems
         void Destroy();
 
         template <typename U>
-        Core::Config::ObjectIDType Add(U &&object)
+        Core::Config::ObjectIdType Add(U &&object)
         {
             auto id = object_system.Add(std::forward<U>(object));
 

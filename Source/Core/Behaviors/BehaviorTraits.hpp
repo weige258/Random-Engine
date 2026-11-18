@@ -24,7 +24,7 @@ namespace RandomEngine::Core::Behaviors
  */
 #define BIND_BEHAVIORS_TO_OBJECT(ObjectType, ...) \
     template <> \
-    struct ::RandomEngine::Core::Behaviors::BehaviorsBindForObject<ObjectType> { \
+    struct RandomEngine::Core::Behaviors::BehaviorsBindForObject<ObjectType> { \
         using Type = ::RandomEngine::Core::Behaviors::BindBehaviorSet<__VA_ARGS__>; \
         static_assert( \
             ::RandomEngine::Core::Behaviors::BindBehaviorSet<__VA_ARGS__>::count >= 0, \

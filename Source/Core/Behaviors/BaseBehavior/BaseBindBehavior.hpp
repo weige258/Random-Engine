@@ -7,7 +7,7 @@ namespace RandomEngine::Core::Behaviors {
     
     struct BaseBindBehavior: BaseBehavior
     {
-        static constexpr Config::ObjectIDType null_index = static_cast<Config::ObjectIDType>(-1);
+        static constexpr Config::ObjectIdType null_index = static_cast<Config::ObjectIdType>(-1);
         Objects::ObjectId bind_object_id=null_index;
 
         BaseBindBehavior();

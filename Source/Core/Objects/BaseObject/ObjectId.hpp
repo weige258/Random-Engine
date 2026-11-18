@@ -8,12 +8,12 @@ namespace RandomEngine::Core::Objects
 {
     struct ObjectId final
     {
-        Core::Config::ObjectIDType id = 0;
+        Core::Config::ObjectIdType id = 0;
 
         constexpr ObjectId() = default;
-        constexpr ObjectId(Core::Config::ObjectIDType v) : id(v) {}
+        constexpr ObjectId(Core::Config::ObjectIdType v) : id(v) {}
 
-        constexpr operator Core::Config::ObjectIDType() const noexcept
+        constexpr operator Core::Config::ObjectIdType() const noexcept
         {
             return id;
         }
@@ -28,6 +28,6 @@ struct std::hash<RandomEngine::Core::Objects::ObjectId>
 {
     size_t operator()(const RandomEngine::Core::Objects::ObjectId &k) const noexcept
     {
-        return std::hash<RandomEngine::Core::Config::ObjectIDType>{}(k.id);
+        return std::hash<RandomEngine::Core::Config::ObjectIdType>{}(k.id);
     }
 };

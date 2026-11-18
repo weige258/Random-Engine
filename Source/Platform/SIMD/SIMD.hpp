@@ -32,19 +32,29 @@ namespace RandomEngine::Platform::SIMD
 #endif
 
 // =========================================================================
+// 标量类型 -> 向量寄存器类型 的映射
+// =========================================================================
+// 不用 std::conditional_t：__m128 / __m128d / __m128i 带 __vector_size__ 类型属性，
+// 作为模板实参传入时 GCC 会丢弃属性并报 -Wignored-attributes（Clang/MSVC 不报）。
+// 改用显式特化后，模板实参始终是标量类型，向量类型只出现在定义体内，
+// 三个编译器下都不会产生警告，语义与原先的 conditional_t 完全一致（其余类型回退到 IntVec）。
+template <typename T>
+struct SIMDVecTraits
+{
+    using Type = IntVec;
+};
+
+template <> struct SIMDVecTraits<float>  { using Type = FloatVec;  };
+template <> struct SIMDVecTraits<double> { using Type = DoubleVec; };
+
+// =========================================================================
 // 平台无关 SIMD 向量包裹类型
 // =========================================================================
 
 template <typename T>
 struct alignas(SIMDAlignment) SIMDVec
 {
-    using VecType = std::conditional_t<
-        std::is_same_v<T, float>, FloatVec,
-        std::conditional_t<
-            std::is_same_v<T, double>, DoubleVec,
-            IntVec
-        >
-    >;
+    using VecType = typename SIMDVecTraits<T>::Type;
 
     VecType v;
 
