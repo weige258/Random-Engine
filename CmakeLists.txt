@@ -84,6 +84,26 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "G
     set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL     "-flto" CACHE STRING "Clang/GCC MinSizeRel linker"      FORCE)
 endif()
 
+# ---------------------------------------------------------------------------
+# GNU 专用：Release 系列使用了 -flto，编译产物是 GIMPLE 字节码对象。
+# 普通 ar/ranlib 无法为 LTO 对象建立正确的符号索引（vtable / 构造函数等符号会丢失），
+# 链接阶段报大量 undefined reference。必须改用带 LTO 插件的 gcc-ar / gcc-ranlib。
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    get_filename_component(_RE_GCC_BIN "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    if(WIN32)
+        set(_RE_AR     "${_RE_GCC_BIN}/gcc-ar.exe")
+        set(_RE_RANLIB "${_RE_GCC_BIN}/gcc-ranlib.exe")
+    else()
+        set(_RE_AR     "${_RE_GCC_BIN}/gcc-ar")
+        set(_RE_RANLIB "${_RE_GCC_BIN}/gcc-ranlib")
+    endif()
+    set(CMAKE_AR     "${_RE_AR}"     CACHE FILEPATH "GNU ar (LTO plugin)"     FORCE)
+    set(CMAKE_RANLIB "${_RE_RANLIB}" CACHE FILEPATH "GNU ranlib (LTO plugin)" FORCE)
+    unset(_RE_AR)
+    unset(_RE_RANLIB)
+    unset(_RE_GCC_BIN)
+endif()
+
 add_subdirectory(Source)
 
 # 警告开关只施加到项目自有的 target。

@@ -28,11 +28,6 @@
 
 #include <cmath>
 
-#if defined(_MSC_VER)
-    #define _mm256_cvtps2_pd(a)  _mm256_cvtps_pd(a)
-    #define _mm256_cvtpd2_ps(a)  _mm256_cvtpd_ps(a)
-#endif
-
 namespace RandomEngine::Platform::SIMD
 {
 
@@ -148,8 +143,8 @@ RSIMD_FORCEINLINE float HMaxf(__m256 vec) {
 RSIMD_FORCEINLINE auto ConvertToFloatf(__m256i a) { return _mm256_cvtepi32_ps(a); }
 RSIMD_FORCEINLINE auto ConvertToIntf(__m256 a) { return _mm256_cvtps_epi32(a); }
 
-RSIMD_FORCEINLINE auto CvtPs2Pd(__m128 a) { return _mm256_cvtps2_pd(a); }
-RSIMD_FORCEINLINE auto CvtPd2Ps(__m256d a) { return _mm256_cvtpd2_ps(a); }
+RSIMD_FORCEINLINE auto CvtPs2Pd(__m128 a) { return _mm256_cvtps_pd(a); }
+RSIMD_FORCEINLINE auto CvtPd2Ps(__m256d a) { return _mm256_cvtpd_ps(a); }
 
 #elif defined(RSIMD_SSE2)
 
@@ -988,7 +983,7 @@ template <typename From, typename To> RSIMD_FORCEINLINE auto LoadConvert(const F
     else if constexpr (std::is_same_v<From, float> && std::is_same_v<To, double>) {
 #if defined(RSIMD_AVX)
         __m128 a = _mm_loadu_ps(ptr);
-        return _mm256_cvtps2_pd(a);
+        return _mm256_cvtps_pd(a);
 #elif defined(RSIMD_SSE2)
         __m128 a = _mm_loadl_pi(_mm_setzero_ps(), reinterpret_cast<const __m64*>(ptr));
         return _mm_cvtps_pd(a);
@@ -997,7 +992,7 @@ template <typename From, typename To> RSIMD_FORCEINLINE auto LoadConvert(const F
     else if constexpr (std::is_same_v<From, double> && std::is_same_v<To, float>) {
 #if defined(RSIMD_AVX)
         __m256d a = _mm256_loadu_pd(ptr);
-        return _mm256_cvtpd2_ps(a);
+        return _mm256_cvtpd_ps(a);
 #elif defined(RSIMD_SSE2)
         __m128d a = _mm_loadu_pd(ptr);
         return _mm_cvtpd_ps(a);
