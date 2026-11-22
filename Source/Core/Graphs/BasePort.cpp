@@ -24,23 +24,28 @@ namespace RandomEngine::Core::Graphs
 
     bool BasePort::Disconnect(BasePort &port)
     {
-        for (auto it = connected_ports.begin(); it != connected_ports.end(); ++it)
+        bool clear_port1=false;
+        bool clear_port2=false;
+        
+        for (auto it1 = connected_ports.begin(); it1 != connected_ports.end(); ++it1)
         {
-            if (&it->get() == &port)
+            if (&it1->get() == &port)
             {
-                connected_ports.erase(it);
-                for (auto it2 = port.connected_ports.begin(); it2 != port.connected_ports.end(); ++it2)
-                {
-                    if (&it2->get() == this)
-                    {
-                        port.connected_ports.erase(it2);
-                        break;
-                    }
-                }
-                return true;
+                connected_ports.erase(it1);
+                clear_port1=true;
             }
         }
-        return false;
+
+        for(auto it2=port.connected_ports.begin();it2!=port.connected_ports.end();++it2)
+        {
+            if(&it2->get()==this)
+            {
+                port.connected_ports.erase(it2);
+                clear_port2=true;
+            }
+        }
+
+        return clear_port1&&clear_port2;
     }
 
     void BasePort::DisconnectAll()
