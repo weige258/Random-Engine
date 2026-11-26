@@ -1,103 +1,79 @@
 #pragma once
-
-#include "BaseNode.hpp"
-#include <vector>
-#include <functional>
-#include <variant>
-#include <algorithm>
+#include "PortId.hpp"
+#include <tuple>
 
 namespace RandomEngine::Core::Graphs
 {
-    struct BaseAnyPort;
-    struct BaseInPort;
-    struct BaseOutPort;
 
-    enum class PortDirection
+    enum PortDirection
     {
         Input,
         Output,
         Any
     };
 
-    // 会话视图契约（进程内，非持久层）：
-    //   1. 生命周期：端口 ⊂ 节点 ⊂ 图；端口不进容器、不搬移、不存盘（赋值已隐式删除）。
-    //   2. 销毁顺序：先摘边（Disconnect / 清空 connected_ports），再删节点，否则连接表悬挂。
-    //   3. 需要持久化 / remap / 跨 Chunk 的边一律去上层用可重映射 ID 表达，基类不参与。
+    enum PortType
+    {
+        Static,
+        Dynamic
+    };
+
     struct BasePort
     {
-
-        friend struct BaseInPort;
-        friend struct BaseOutPort;
-        friend struct BaseAnyPort;
-
     protected:
-        const BaseNode &owner;
-        std::vector<std::reference_wrapper<BasePort>> connected_ports;
+        PortId port_id;
 
     public:
-        explicit BasePort(const BaseNode &owner);
+        BasePort() = default;
 
-        virtual PortDirection GetDirection() const noexcept = 0;
+        explicit BasePort(PortId port_id) : port_id(port_id) {}
 
-        virtual bool CanConnect(const BasePort &port) const noexcept = 0;
+        explicit BasePort(NodeId owner, uint32_t index) : port_id(owner, index) {}
 
-        bool IsConnected(const BasePort &port) const noexcept;
+        virtual ~BasePort() {};
 
-        virtual bool Connect(BasePort &port) = 0;
+        void BindPortId(PortId port_id) { port_id = port_id; }
 
-        bool Disconnect(BasePort& port);
+        void BindNodeId(NodeId node_id) { port_id.owner_node_id = node_id; }
 
-        void DisconnectAll();
+        void BindIndex(uint32_t index) { port_id.index = index; }
 
-        virtual ~BasePort() ;
+        NodeId GetNodeId() const { return port_id.owner_node_id; }
+
+        PortId GetPortId() const { return port_id; }
+
+        uint32_t GetIndex() const { return port_id.index; }
+
+        virtual PortDirection GetPortDirection() = 0;
+
+        virtual PortType GetPortType() = 0;
     };
 
-    struct BaseAnyPort : BasePort
+    struct BaseAnyPort : public BasePort
     {
 
-        BaseAnyPort(const BaseNode &owner);
+        BaseAnyPort(PortId port_id) : BasePort(port_id) {}
+        virtual ~BaseAnyPort() {};
 
-        PortDirection GetDirection() const noexcept override;
-
-        bool CanConnect(const BasePort &port) const noexcept override;
-
-        virtual bool Connect(BasePort &port) override;
-        
-        void StaticConnect(std::variant<
-                     std::reference_wrapper<BaseInPort>,
-                     std::reference_wrapper<BaseOutPort>,
-                     std::reference_wrapper<BaseAnyPort>> const &port);
+        virtual PortDirection GetPortDirection() override { return PortDirection::Any; }
     };
 
-    struct BaseOutPort : BasePort
+    struct BaseInPort : public BasePort
     {
 
-        BaseOutPort(const BaseNode &owner);
+        BaseInPort(PortId port_id) : BasePort(port_id) {}
+        virtual ~BaseInPort() {};
 
-        PortDirection GetDirection() const noexcept override;
-
-        bool CanConnect(const BasePort &port) const noexcept override;
-
-        virtual bool Connect(BasePort &port) override;
-
-        void StaticConnect(std::variant<
-                     std::reference_wrapper<BaseInPort>,
-                     std::reference_wrapper<BaseAnyPort>> const &port);
+        virtual PortDirection GetPortDirection() override { return PortDirection::Input; }
     };
 
-    struct BaseInPort : BasePort
+    struct BaseOutPort : public BasePort
     {
 
-        BaseInPort(const BaseNode &owner);
+        BaseOutPort(PortId port_id) : BasePort(port_id) {}
+        virtual ~BaseOutPort() {};
 
-        PortDirection GetDirection() const noexcept override;
-
-        bool CanConnect(const BasePort &port) const noexcept override;
-
-        virtual bool Connect(BasePort &port) override;
-
-        void StaticConnect(std::variant<
-                     std::reference_wrapper<BaseOutPort>,
-                     std::reference_wrapper<BaseAnyPort>> const &port);
+        virtual PortDirection GetPortDirection() override { return PortDirection::Output; }
     };
+
 }

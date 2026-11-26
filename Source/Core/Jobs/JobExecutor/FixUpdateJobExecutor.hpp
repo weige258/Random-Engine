@@ -547,6 +547,8 @@ namespace RandomEngine::Core::Jobs::JobExecutor
     private:
         void BuildWorkers(size_t count)
         {
+            count = count < 1 ? 1 : count; // 兜底：任何入口都不允许 0 线程
+
             m_workers.clear();
             m_workers.reserve(count);
             for (size_t i = 0; i < count; ++i)

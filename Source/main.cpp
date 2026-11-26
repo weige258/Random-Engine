@@ -16,9 +16,9 @@
 #include <cmath>
 #include <array>
 #include "Core/Time/Timer.hpp"
-#include "Core/Graphs/BasePort.hpp"
-
-
+#include "Core/Containers/GenerationalSlotArray.hpp"
+#include "Core/Graphs/BaseGraph.hpp"
+static RandomEngine::Core::Graphs::BaseGraph g_graph={};
 using namespace RandomEngine::Core::Behaviors;
 using namespace RandomEngine::Core::Jobs;
 using namespace RandomEngine::Core::Objects;
@@ -111,10 +111,6 @@ static RandomEngine::Core::Time::Timer timer;
 
 int main()
 {
-    RandomEngine::Core::Graphs::BaseNode node;
-    RandomEngine::Core::Graphs::BaseOutPort port(node);
-    RandomEngine::Core::Graphs::BaseInPort in_port(node);
-    port.StaticConnect(in_port);
     
     RandomEngine::Engine::Application app;
     app.Init();

@@ -70,18 +70,13 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
         // ---------------- 生命周期 ----------------
 
+        // 线程数唯一入口：Start 委托给 SetThreadCount（内部夹持到 >=1 并启动 Worker）
         void Start(size_t thread_count = 1)
         {
             if (m_is_running.exchange(true, std::memory_order_acq_rel))
                 return;
 
-            {
-                std::unique_lock<std::shared_mutex> lock(m_workers_mutex);
-                BuildWorkers(thread_count);
-                for (auto &w : m_workers)
-                    w->Start(); // dt/Tick 逻辑全部在 Worker 内部（OnStart/OnLoopStart）
-            }
-
+            SetThreadCount(thread_count);
             StartBalancer();
         }
 
@@ -200,7 +195,7 @@ namespace RandomEngine::Core::Jobs::JobExecutor
 
             BuildWorkers(count);
             for (size_t i = 0; i < orphans.size(); ++i)
-                m_workers[i % count]->PushTask(orphans[i]);
+                m_workers[i % m_workers.size()]->PushTask(orphans[i]);
 
             if (was_running)
                 for (auto &w : m_workers)
@@ -234,6 +229,8 @@ namespace RandomEngine::Core::Jobs::JobExecutor
     private:
         void BuildWorkers(size_t count)
         {
+            count = count < 1 ? 1 : count; // 兜底：任何入口都不允许 0 线程
+
             m_workers.clear();
             m_workers.reserve(count);
             for (size_t i = 0; i < count; ++i)
