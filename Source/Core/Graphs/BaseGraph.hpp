@@ -98,7 +98,11 @@ namespace RandomEngine::Core::Graphs
         }
 
         virtual bool Connect(const PortId& from,const PortId& to) {
-            return BaseConnect(from,to);
+            if(CanConnect(from,to)){
+                edges.push_back(BaseEdge(from,to));
+                return true;
+            }
+            return false;
         };
 
         bool Disconnect(const PortId& from,const PortId& to){

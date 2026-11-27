@@ -6,12 +6,6 @@
 namespace RandomEngine::Core::Graphs
 {
 
-    template <class T>
-    concept BasePortType =
-        std::derived_from<T, BasePort> &&
-        !std::is_abstract_v<T> &&
-        std::default_initializable<T>;
-
     template <std::uint32_t I, BasePortType T>
     struct PortSlot
     {

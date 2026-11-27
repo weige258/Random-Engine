@@ -19,25 +19,47 @@ namespace RandomEngine::Core::Graphs
 
         virtual std::unordered_map<std::uint32_t, BasePort *> GetAllPorts() = 0;
 
-    private:
+        template <BasePortType T>
+        bool InsertPort(uint32_t index, T port)
+        {
+            port.BindNodeId(id);
+            port.BindIndex(index);
+            for (auto [i, p] : GetAllPorts())
+            {
+                if (i == index)
+                {
+                    *p = port;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        template <BasePortType T>
+        bool InsertPort(T port)
+        {
+            return InsertPort(port.GetIndex(), port);
+        }
     };
 
     struct TestPort : BasePort
     {
-        virtual PortDirection GetPortDirection() override { return PortDirection::Any; }
+        
+        virtual PortDirection GetPortDirection() const override { return PortDirection::Any; }
 
-        virtual PortType GetPortType() override { return PortType::Static; }
+        virtual PortType GetPortType() const override { return PortType::Static; }
 
         virtual ~TestPort() = default;
     };
 
     struct TestNode : BaseNode
     {
-        
+
         PortSlot<1, TestPort> port;
-         
-        virtual std::unordered_map<std::uint32_t, BasePort *> GetAllPorts() override{
-                return {port};
+
+        virtual std::unordered_map<std::uint32_t, BasePort *> GetAllPorts() override
+        {
+            return {port};
         }
     };
 }

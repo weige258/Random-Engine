@@ -27,7 +27,7 @@ namespace RandomEngine::Core::Graphs
             return false;
         }
 
-        const PortId& From() const { return from; }
-        const PortId& To() const { return to; }
+        const PortId &From() const { return from; }
+        const PortId &To() const { return to; }
     };
 }

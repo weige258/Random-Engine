@@ -18,6 +18,7 @@ namespace RandomEngine::Core::Graphs
         Dynamic
     };
 
+
     struct BasePort
     {
     protected:
@@ -44,36 +45,16 @@ namespace RandomEngine::Core::Graphs
 
         uint32_t GetIndex() const { return port_id.index; }
 
-        virtual PortDirection GetPortDirection() = 0;
+        virtual PortDirection GetPortDirection() const = 0;
 
-        virtual PortType GetPortType() = 0;
+        virtual PortType GetPortType() const = 0;
     };
 
-    struct BaseAnyPort : public BasePort
-    {
 
-        BaseAnyPort(PortId port_id) : BasePort(port_id) {}
-        virtual ~BaseAnyPort() {};
-
-        virtual PortDirection GetPortDirection() override { return PortDirection::Any; }
-    };
-
-    struct BaseInPort : public BasePort
-    {
-
-        BaseInPort(PortId port_id) : BasePort(port_id) {}
-        virtual ~BaseInPort() {};
-
-        virtual PortDirection GetPortDirection() override { return PortDirection::Input; }
-    };
-
-    struct BaseOutPort : public BasePort
-    {
-
-        BaseOutPort(PortId port_id) : BasePort(port_id) {}
-        virtual ~BaseOutPort() {};
-
-        virtual PortDirection GetPortDirection() override { return PortDirection::Output; }
-    };
+    template <class T>
+    concept BasePortType =
+        std::derived_from<T, BasePort> &&
+        !std::is_abstract_v<T> &&
+        std::default_initializable<T>;
 
 }
